@@ -29,7 +29,7 @@
         target="noopener noreferrer"
       >More Themes</a>
       <a
-        href="https://demos.pixinvent.com/vuexy-vuejs-admin-template/documentation/"
+        href="https://github.com/aristizabal144/18d-web-app"
         target="noopener noreferrer"
       >Documentation</a>
       <a

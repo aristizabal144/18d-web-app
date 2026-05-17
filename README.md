@@ -1,6 +1,6 @@
-# vue
+# 18D JOYEROS
 
-This template should help get you started developing with Vue 3 in Vite.
+This project is a web application for 18D Joyeros, built with Vue 3 in Vite.
 
 ## Recommended IDE Setup
 

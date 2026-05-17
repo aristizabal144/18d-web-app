@@ -7,13 +7,13 @@
       <VCardText>All the best for your new project.</VCardText>
       <VCardText>
         Please make sure to read our <a
-          href="https://demos.pixinvent.com/vuexy-vuejs-admin-template/documentation/"
+          href="https://github.com/aristizabal144/18d-web-app"
           target="_blank"
           rel="noopener noreferrer"
           class="text-decoration-none"
         >
-          Template Documentation
-        </a> to understand where to go from here and how to use our template.
+          Project Repository
+        </a> to understand where to go from here and how to use our project.
       </VCardText>
     </VCard>
 
