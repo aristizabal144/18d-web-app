@@ -1,9 +1,30 @@
 <script setup lang="ts">
-import avatar1 from '@images/avatars/avatar-1.png'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/utils/supabase'
 
 const router = useRouter()
+
+const userProfile = ref({ nombre: 'U', apellido: '', rol: 'Cargando...' })
+
+onMounted(async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('nombre, apellido, roles(nombre)')
+      .eq('id', user.id)
+      .single()
+
+    if (data) {
+      userProfile.value = {
+        nombre: data.nombre || 'U',
+        apellido: data.apellido || '',
+        rol: data.roles?.nombre ? data.roles.nombre.charAt(0).toUpperCase() + data.roles.nombre.slice(1) : 'Usuario',
+      }
+    }
+  }
+})
 
 const handleLogout = async () => {
   try {
@@ -29,7 +50,7 @@ const handleLogout = async () => {
       color="primary"
       variant="tonal"
     >
-      <VImg :src="avatar1" />
+      <span class="font-weight-medium">{{ userProfile.nombre.charAt(0).toUpperCase() }}</span>
 
       <!-- SECTION Menu -->
       <VMenu
@@ -54,16 +75,16 @@ const handleLogout = async () => {
                     color="primary"
                     variant="tonal"
                   >
-                    <VImg :src="avatar1" />
+                    <span class="font-weight-medium">{{ userProfile.nombre.charAt(0).toUpperCase() }}</span>
                   </VAvatar>
                 </VBadge>
               </VListItemAction>
             </template>
 
             <VListItemTitle class="font-weight-semibold">
-              John Doe
+              {{ userProfile.nombre }} {{ userProfile.apellido }}
             </VListItemTitle>
-            <VListItemSubtitle>Admin</VListItemSubtitle>
+            <VListItemSubtitle>{{ userProfile.rol }}</VListItemSubtitle>
           </VListItem>
 
           <VDivider class="my-2" />

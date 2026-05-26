@@ -1,8 +1,13 @@
 export default [
   {
-    title: 'Home',
+    title: 'Métricas',
     to: { name: 'root' },
-    icon: { icon: 'tabler-smart-home' },
+    icon: { icon: 'tabler-chart-bar' },
+  },
+  {
+    title: 'Clientes',
+    to: { name: 'apps-clients-list' },
+    icon: { icon: 'tabler-users' },
   },
   {
     title: 'Second page',

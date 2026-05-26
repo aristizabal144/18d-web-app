@@ -140,6 +140,7 @@ declare global {
   const shallowRef: typeof import('vue')['shallowRef']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const supabase: typeof import('./src/utils/supabase')['supabase']
+  const supabaseAdmin: typeof import('./src/utils/supabaseAdmin')['supabaseAdmin']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
   const templateRef: typeof import('@vueuse/core')['templateRef']
@@ -506,6 +507,7 @@ declare module 'vue' {
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly supabase: UnwrapRef<typeof import('./src/utils/supabase')['supabase']>
+    readonly supabaseAdmin: UnwrapRef<typeof import('./src/utils/supabaseAdmin')['supabaseAdmin']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
