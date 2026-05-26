@@ -4,6 +4,7 @@ import type { App } from 'vue'
 import type { RouteRecordRaw } from 'vue-router/auto'
 
 import { createRouter, createWebHistory } from 'vue-router/auto'
+import { supabase } from '@/utils/supabase'
 
 function recursiveLayouts(route: RouteRecordRaw): RouteRecordRaw {
   if (route.children) {
@@ -27,6 +28,24 @@ const router = createRouter({
   extendRoutes: pages => [
     ...[...pages].map(route => recursiveLayouts(route)),
   ],
+})
+
+router.beforeEach(async (to, from, next) => {
+  const { data: { session } } = await supabase.auth.getSession()
+
+  const isPublicRoute = to.meta.public === true
+
+  if (!session && !isPublicRoute) {
+    // Usuario no logueado intenta acceder a ruta protegida -> redirigir a login
+    return next({ path: '/login' })
+  }
+
+  if (session && to.path === '/login') {
+    // Usuario logueado intenta acceder al login -> redirigir al inicio
+    return next({ path: '/' })
+  }
+
+  next()
 })
 
 export { router }

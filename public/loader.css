@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:wght@300;400;500&display=swap');
+
 body {
   margin: 0;
 }
@@ -13,19 +15,66 @@ html {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--initial-loader-bg, #fff);
+  background: var(--initial-loader-bg, #141414);
   block-size: 100%;
-  gap: 1rem 0;
+  gap: 0.5rem 0;
   inline-size: 100%;
 }
 
+/* ---- 18D Logo Container ---- */
+.loading-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: 1.5rem;
+  animation: fadeInDown 0.6s ease both;
+}
+
+.loading-logo svg {
+  filter: drop-shadow(0 0 12px rgba(201, 168, 76, 0.5));
+  animation: pulseGold 2.5s ease-in-out infinite;
+}
+
+.loading-brand-name {
+  font-family: 'Cinzel', 'Georgia', serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--initial-loader-color, #C9A84C);
+  line-height: 1;
+  background: linear-gradient(
+    135deg,
+    #E2C06A 0%,
+    #C9A84C 30%,
+    #F0D080 55%,
+    #C9A84C 70%,
+    #A07A2B 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(201, 168, 76, 0.4));
+}
+
+.loading-brand-tagline {
+  font-family: 'Cinzel', 'Georgia', serif;
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.45em;
+  color: var(--initial-loader-color, #C9A84C);
+  opacity: 0.75;
+  text-transform: uppercase;
+}
+
+/* ---- Spinner ---- */
 .loading {
   position: relative;
   box-sizing: border-box;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 50%;
-  block-size: 55px;
-  inline-size: 55px;
+  block-size: 48px;
+  inline-size: 48px;
 }
 
 .loading .effect-1,
@@ -33,23 +82,23 @@ html {
 .loading .effect-3 {
   position: absolute;
   box-sizing: border-box;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 50%;
   block-size: 100%;
-  border-inline-start: 3px solid var(--initial-loader-color, #eee);
+  border-inline-start: 2px solid var(--initial-loader-color, #C9A84C);
   inline-size: 100%;
 }
 
 .loading .effect-1 {
-  animation: rotate 1s ease infinite;
+  animation: rotate 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .loading .effect-2 {
-  animation: rotate-opacity 1s ease infinite 0.1s;
+  animation: rotate-opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.12s;
 }
 
 .loading .effect-3 {
-  animation: rotate-opacity 1s ease infinite 0.2s;
+  animation: rotate-opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.24s;
 }
 
 .loading .effects {
@@ -57,23 +106,31 @@ html {
 }
 
 @keyframes rotate {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(1turn);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(1turn); }
 }
 
 @keyframes rotate-opacity {
-  0% {
-    opacity: 0.1;
-    transform: rotate(0deg);
-  }
+  0%   { opacity: 0.1; transform: rotate(0deg); }
+  100% { opacity: 1;   transform: rotate(1turn); }
+}
 
-  100% {
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
     opacity: 1;
-    transform: rotate(1turn);
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGold {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(201, 168, 76, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(201, 168, 76, 0.75));
   }
 }

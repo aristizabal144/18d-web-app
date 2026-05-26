@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import AuthProvider from '@/views/pages/authentication/AuthProvider.vue'
-import { useGenerateImageVariant } from '@core/composable/useGenerateImageVariant'
-import authV2LoginIllustrationBorderedDark from '@images/pages/auth-v2-login-illustration-bordered-dark.png'
-import authV2LoginIllustrationBorderedLight from '@images/pages/auth-v2-login-illustration-bordered-light.png'
-import authV2LoginIllustrationDark from '@images/pages/auth-v2-login-illustration-dark.png'
-import authV2LoginIllustrationLight from '@images/pages/auth-v2-login-illustration-light.png'
-import authV2MaskDark from '@images/pages/misc-mask-dark.png'
-import authV2MaskLight from '@images/pages/misc-mask-light.png'
-import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
 import { themeConfig } from '@themeConfig'
+import { useRouter } from 'vue-router'
+import { supabase } from '@/utils/supabase'
+
+import logoDorado from '@images/logos/logo-dorado.png'
+import { useConfigStore } from '@/@core/stores/config'
 
 definePage({
   meta: {
@@ -24,162 +20,222 @@ const form = ref({
 })
 
 const isPasswordVisible = ref(false)
+const isLoading = ref(false)
+const errorMessage = ref('')
+const configStore = useConfigStore()
+const router = useRouter()
 
-const authThemeImg = useGenerateImageVariant(
-  authV2LoginIllustrationLight,
-  authV2LoginIllustrationDark,
-  authV2LoginIllustrationBorderedLight,
-  authV2LoginIllustrationBorderedDark,
-  true)
+const currentLogo = computed(() => {
+  return logoDorado
+})
 
-const authThemeMask = useGenerateImageVariant(authV2MaskLight, authV2MaskDark)
+const handleLogin = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+  
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: form.value.email,
+      password: form.value.password,
+    })
+    
+    if (error) throw error
+    
+    // Login successful, redirect to dashboard or intended route
+    router.push('/')
+  } catch (error: any) {
+    let msg = error.message
+    
+    // Traducir errores comunes de Supabase al español
+    if (msg.includes('Invalid login credentials')) {
+      msg = 'Correo electrónico o contraseña incorrectos.'
+    } else if (msg.includes('Email not confirmed')) {
+      msg = 'Debes confirmar tu correo electrónico antes de iniciar sesión.'
+    } else if (msg.includes('User not found')) {
+      msg = 'Usuario no encontrado.'
+    }
+    
+    errorMessage.value = msg || 'Error al iniciar sesión. Verifica tus credenciales.'
+  } finally {
+    isLoading.value = false
+  }
+}
 </script>
 
 <template>
-  <a href="javascript:void(0)">
-    <div class="auth-logo d-flex align-center gap-x-3">
-      <VNodeRenderer :nodes="themeConfig.app.logo" />
-      <h1 class="auth-title">
-        {{ themeConfig.app.title }}
-      </h1>
-    </div>
-  </a>
-
-  <VRow
-    no-gutters
-    class="auth-wrapper bg-surface"
-  >
-    <VCol
-      md="8"
-      class="d-none d-md-flex"
+  <div class="auth-wrapper d-flex align-center justify-center pa-4">
+    <VCard
+      class="auth-card-18d pa-0 mx-auto"
+      max-width="1200"
+      elevation="24"
     >
-      <div class="position-relative bg-background w-100 me-0">
-        <div
-          class="d-flex align-center justify-center w-100 h-100"
-          style="padding-inline: 6.25rem;"
+      <VRow no-gutters>
+        <!-- Left Side: Branding / Showcase -->
+        <VCol
+          md="6"
+          class="d-none d-md-flex auth-brand-side align-center justify-center"
         >
-          <VImg
-            max-width="613"
-            :src="authThemeImg"
-            class="auth-illustration mt-16 mb-2"
-          />
-        </div>
+          <div class="brand-overlay"></div>
+          <div class="brand-content text-center z-index-1">
+            <img
+              :src="logoDorado"
+              style="width: 100%; max-width: 600px;"
+              class="mx-auto brand-logo-glow"
+              alt="18D Joyeros Logo"
+            />
+          </div>
+        </VCol>
 
-        <img
-          class="auth-footer-mask flip-in-rtl"
-          :src="authThemeMask"
-          alt="auth-footer-mask"
-          height="280"
-          width="100"
+        <!-- Right Side: Login Form -->
+        <VCol
+          cols="12"
+          md="6"
+          class="auth-form-side d-flex align-center justify-center pa-8 pa-sm-12"
         >
-      </div>
-    </VCol>
+          <div class="w-100" style="max-width: 420px;">
+            <div class="text-center mb-8 d-md-none">
+              <VImg :src="currentLogo" max-width="180" class="mx-auto mb-4" />
+            </div>
 
-    <VCol
-      cols="12"
-      md="4"
-      class="auth-card-v2 d-flex align-center justify-center"
-    >
-      <VCard
-        flat
-        :max-width="500"
-        class="mt-12 mt-sm-0 pa-6"
-      >
-        <VCardText>
-          <h4 class="text-h4 mb-1">
-            Welcome to <span class="text-capitalize">{{ themeConfig.app.title }}</span>! 👋🏻
-          </h4>
-          <p class="mb-0">
-            Please sign-in to your account and start the adventure
-          </p>
-        </VCardText>
-        <VCardText>
-          <VForm @submit.prevent="() => {}">
-            <VRow>
-              <!-- email -->
-              <VCol cols="12">
-                <AppTextField
-                  v-model="form.email"
-                  autofocus
-                  label="Email or Username"
-                  type="email"
-                  placeholder="johndoe@email.com"
-                />
-              </VCol>
+            <div class="mb-8">
+              <h4 class="text-h4 mb-2 font-weight-bold" style="color: rgb(var(--v-theme-on-surface));">
+                Bienvenido a <span class="text-primary">18D</span>
+              </h4>
+              <p class="text-body-1 mb-0" style="color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));">
+                Inicia sesión en tu cuenta para continuar
+              </p>
+            </div>
 
-              <!-- password -->
-              <VCol cols="12">
-                <AppTextField
-                  v-model="form.password"
-                  label="Password"
-                  placeholder="············"
-                  :type="isPasswordVisible ? 'text' : 'password'"
-                  autocomplete="password"
-                  :append-inner-icon="isPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
-                  @click:append-inner="isPasswordVisible = !isPasswordVisible"
-                />
-
-                <div class="d-flex align-center flex-wrap justify-space-between my-6">
-                  <VCheckbox
-                    v-model="form.remember"
-                    label="Remember me"
+            <VForm @submit.prevent="handleLogin">
+              <VRow>
+                <!-- email -->
+                <VCol cols="12">
+                  <AppTextField
+                    v-model="form.email"
+                    autofocus
+                    label="Correo electrónico o Usuario"
+                    type="email"
+                    placeholder="usuario@18djoyeros.com"
                   />
-                  <a
-                    class="text-primary"
-                    href="javascript:void(0)"
+                </VCol>
+
+                <!-- password -->
+                <VCol cols="12">
+                  <AppTextField
+                    v-model="form.password"
+                    label="Contraseña"
+                    placeholder="············"
+                    :type="isPasswordVisible ? 'text' : 'password'"
+                    autocomplete="password"
+                    :append-inner-icon="isPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
+                    @click:append-inner="isPasswordVisible = !isPasswordVisible"
+                  />
+
+                  <div class="d-flex align-center flex-wrap justify-space-between my-6">
+                    <VCheckbox
+                      v-model="form.remember"
+                      label="Recordarme"
+                    />
+                    <a
+                      class="text-primary font-weight-medium"
+                      href="javascript:void(0)"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </a>
+                  </div>
+
+                  <VAlert
+                    v-if="errorMessage"
+                    type="error"
+                    variant="tonal"
+                    class="mb-4 text-body-2"
                   >
-                    Forgot Password?
-                  </a>
-                </div>
+                    {{ errorMessage }}
+                  </VAlert>
 
-                <VBtn
-                  block
-                  type="submit"
-                >
-                  Login
-                </VBtn>
-              </VCol>
-
-              <!-- create account -->
-              <VCol
-                cols="12"
-                class="text-body-1 text-center"
-              >
-                <span class="d-inline-block">
-                  New on our platform?
-                </span>
-                <a
-                  class="text-primary ms-1 d-inline-block text-body-1"
-                  href="javascript:void(0)"
-                >
-                  Create an account
-                </a>
-              </VCol>
-
-              <VCol
-                cols="12"
-                class="d-flex align-center"
-              >
-                <VDivider />
-                <span class="mx-4">or</span>
-                <VDivider />
-              </VCol>
-
-              <!-- auth providers -->
-              <VCol
-                cols="12"
-                class="text-center"
-              >
-                <AuthProvider />
-              </VCol>
-            </VRow>
-          </VForm>
-        </VCardText>
-      </VCard>
-    </VCol>
-  </VRow>
+                  <VBtn
+                    block
+                    type="submit"
+                    size="large"
+                    class="login-btn mt-2"
+                    :loading="isLoading"
+                  >
+                    Iniciar Sesión
+                  </VBtn>
+                </VCol>
+              </VRow>
+            </VForm>
+          </div>
+        </VCol>
+      </VRow>
+    </VCard>
+  </div>
 </template>
 
 <style lang="scss">
-@use "@core/scss/template/pages/page-auth";
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
+.auth-wrapper {
+  min-height: 100vh;
+  background-color: rgb(var(--v-theme-background));
+  background-image: radial-gradient(circle at top right, rgba(var(--v-theme-primary), 0.05), transparent 40%),
+                    radial-gradient(circle at bottom left, rgba(var(--v-theme-primary), 0.05), transparent 40%);
+}
+
+.auth-card-18d {
+  overflow: hidden;
+  border-radius: 16px !important;
+  background-color: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-primary), 0.1) !important;
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.3) !important;
+}
+
+.auth-brand-side {
+  position: relative;
+  background-color: #0A0A0A;
+  min-height: 600px;
+  overflow: hidden;
+
+  // Fondo sutil con un patrón o textura oscura
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, #1E1B16 0%, #0A0A0A 100%);
+    opacity: 0.8;
+  }
+}
+
+.brand-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(201, 168, 76, 0.05) 0%, transparent 50%, rgba(201, 168, 76, 0.05) 100%);
+  pointer-events: none;
+}
+
+.brand-logo-glow {
+  filter: drop-shadow(0 0 25px rgba(201, 168, 76, 0.25));
+  transition: filter 0.5s ease;
+
+  &:hover {
+    filter: drop-shadow(0 0 35px rgba(201, 168, 76, 0.4));
+  }
+}
+
+.login-btn {
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-primary-darken-1)) 100%) !important;
+  color: #141414 !important; // Texto oscuro sobre botón dorado
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.4) !important;
+  }
+}
+
+.z-index-1 {
+  z-index: 1;
+}
 </style>

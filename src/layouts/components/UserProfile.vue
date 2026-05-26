@@ -1,5 +1,18 @@
 <script setup lang="ts">
 import avatar1 from '@images/avatars/avatar-1.png'
+import { useRouter } from 'vue-router'
+import { supabase } from '@/utils/supabase'
+
+const router = useRouter()
+
+const handleLogout = async () => {
+  try {
+    await supabase.auth.signOut()
+    router.push('/login')
+  } catch (error) {
+    console.error('Error during logout:', error)
+  }
+}
 </script>
 
 <template>
@@ -111,7 +124,7 @@ import avatar1 from '@images/avatars/avatar-1.png'
           <VDivider class="my-2" />
 
           <!-- 👉 Logout -->
-          <VListItem to="/login">
+          <VListItem @click="handleLogout">
             <template #prepend>
               <VIcon
                 class="me-2"
