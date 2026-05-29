@@ -66,6 +66,10 @@ const handleDrawerModelValueUpdate = (val: boolean) => {
 
 // Validaciones
 const requiredValidator = (v: string) => !!v || 'Campo requerido'
+const phoneValidator = (v: string) => {
+  if (!v) return true // Es opcional
+  return /^\+?[0-9\s\-()]{7,20}$/.test(v) || 'El teléfono debe tener entre 7 y 20 caracteres'
+}
 </script>
 
 <template>
@@ -126,6 +130,7 @@ const requiredValidator = (v: string) => !!v || 'Campo requerido'
               <VCol cols="12">
                 <AppTextField
                   v-model="telefono"
+                  :rules="[phoneValidator]"
                   label="Teléfono"
                 />
               </VCol>

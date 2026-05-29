@@ -77,14 +77,15 @@ export const useClientStore = defineStore('ClientStore', {
       return data.user
     },
 
-    // 👉 Update Client
+    // 👉 Update Client (usa RPC/POST para evitar bloqueo CORS con PATCH)
     async updateClient(id: string, clientData: { nombre: string; apellido: string; telefono?: string }) {
       const { data, error } = await supabase
-        .from('profiles')
-        .update(clientData)
-        .eq('id', id)
-        .select()
-        .single()
+        .rpc('update_profile', {
+          profile_id: id,
+          new_nombre: clientData.nombre,
+          new_apellido: clientData.apellido,
+          new_telefono: clientData.telefono || null,
+        })
 
       if (error) {
         console.error('Error updating client:', error)

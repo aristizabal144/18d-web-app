@@ -10,8 +10,9 @@ export default [
     icon: { icon: 'tabler-users' },
   },
   {
-    title: 'Second page',
-    to: { name: 'second-page' },
-    icon: { icon: 'tabler-file' },
+    title: 'Diseños 3D',
+    to: { name: 'apps-disenos-list' },
+    icon: { icon: 'tabler-cube-3d-sphere' },
   },
 ]
+

@@ -221,40 +221,11 @@ const formatDate = (dateString: string) => {
 
         <!-- Pagination -->
         <template #bottom>
-          <VDivider />
-          <div class="d-flex align-center justify-sm-space-between justify-center flex-wrap gap-3 pa-5 pt-3">
-            <p class="text-sm text-disabled mb-0">
-              Mostrando {{ clients.length > 0 ? (page - 1) * itemsPerPage + 1 : 0 }} a {{ Math.min(page * itemsPerPage, totalClients) }} de {{ totalClients }} registros
-            </p>
-
-            <VPagination
-              v-model="page"
-              :length="Math.ceil(totalClients / itemsPerPage)"
-              :total-visible="$vuetify.display.xs ? 1 : 5"
-            >
-              <template #prev="slotProps">
-                <VBtn
-                  variant="tonal"
-                  color="default"
-                  v-bind="slotProps"
-                  :icon="false"
-                >
-                  Anterior
-                </VBtn>
-              </template>
-
-              <template #next="slotProps">
-                <VBtn
-                  variant="tonal"
-                  color="default"
-                  v-bind="slotProps"
-                  :icon="false"
-                >
-                  Siguiente
-                </VBtn>
-              </template>
-            </VPagination>
-          </div>
+          <TablePagination
+            v-model:page="page"
+            :items-per-page="itemsPerPage"
+            :total-items="totalClients"
+          />
         </template>
       </VDataTableServer>
     </VCard>
