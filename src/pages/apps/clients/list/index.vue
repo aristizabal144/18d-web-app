@@ -44,12 +44,14 @@ const fetchClients = async () => {
         sortBy: sortBy.value ? [{ key: sortBy.value, order: orderBy.value }] : [],
       },
     })
-    
+
     clients.value = data
     totalClients.value = total
-  } catch (error) {
+  }
+  catch (error) {
     console.error(error)
-  } finally {
+  }
+  finally {
     isTableLoading.value = false
   }
 }
@@ -68,9 +70,11 @@ onMounted(() => {
 const handleClientAdded = async (clientData: any) => {
   try {
     await clientStore.addClient(clientData)
+
     // Refetch
     fetchClients()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error adding client', error)
   }
 }
@@ -89,7 +93,8 @@ const handleClientEdited = async (clientData: any) => {
       telefono: clientData.telefono,
     })
     fetchClients()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error updating client', error)
   }
 }
@@ -100,7 +105,8 @@ const deleteClient = async (id: string) => {
     try {
       await clientStore.deleteClient(id)
       fetchClients()
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Error deleting client', error)
     }
   }
@@ -109,6 +115,7 @@ const deleteClient = async (id: string) => {
 // Formateo de fecha
 const formatDate = (dateString: string) => {
   const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
+
   return new Date(dateString).toLocaleDateString('es-ES', options)
 }
 </script>
@@ -179,7 +186,7 @@ const formatDate = (dateString: string) => {
             <!-- Avatar Circular con Iniciales y Color Corporativo -->
             <VAvatar
               size="34"
-              :color="'primary'"
+              color="primary"
               variant="tonal"
               class="me-3 font-weight-medium"
             >
@@ -232,12 +239,12 @@ const formatDate = (dateString: string) => {
 
     <!-- 👉 Drawers -->
     <AddNewClientDrawer
-      v-model:isDrawerOpen="isAddNewClientDrawerVisible"
+      v-model:is-drawer-open="isAddNewClientDrawerVisible"
       @client-data="handleClientAdded"
     />
 
     <EditClientDrawer
-      v-model:isDrawerOpen="isEditClientDrawerVisible"
+      v-model:is-drawer-open="isEditClientDrawerVisible"
       :client="clientToEdit"
       @client-data="handleClientEdited"
     />

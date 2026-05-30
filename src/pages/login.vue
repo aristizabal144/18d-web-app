@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { themeConfig } from '@themeConfig'
 import { useRouter } from 'vue-router'
+import { themeConfig } from '@themeConfig'
 import { supabase } from '@/utils/supabase'
 
 import logoDorado from '@images/logos/logo-dorado.png'
@@ -32,31 +32,33 @@ const currentLogo = computed(() => {
 const handleLogin = async () => {
   isLoading.value = true
   errorMessage.value = ''
-  
+
   try {
     const { error } = await supabase.auth.signInWithPassword({
       email: form.value.email,
       password: form.value.password,
     })
-    
-    if (error) throw error
-    
+
+    if (error)
+      throw error
+
     // Login successful, redirect to dashboard or intended route
     router.push('/')
-  } catch (error: any) {
+  }
+  catch (error: any) {
     let msg = error.message
-    
+
     // Traducir errores comunes de Supabase al español
-    if (msg.includes('Invalid login credentials')) {
+    if (msg.includes('Invalid login credentials'))
       msg = 'Correo electrónico o contraseña incorrectos.'
-    } else if (msg.includes('Email not confirmed')) {
+    else if (msg.includes('Email not confirmed'))
       msg = 'Debes confirmar tu correo electrónico antes de iniciar sesión.'
-    } else if (msg.includes('User not found')) {
+    else if (msg.includes('User not found'))
       msg = 'Usuario no encontrado.'
-    }
-    
+
     errorMessage.value = msg || 'Error al iniciar sesión. Verifica tus credenciales.'
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -75,14 +77,14 @@ const handleLogin = async () => {
           md="6"
           class="d-none d-md-flex auth-brand-side align-center justify-center"
         >
-          <div class="brand-overlay"></div>
+          <div class="brand-overlay" />
           <div class="brand-content text-center z-index-1">
             <img
               :src="logoDorado"
               style="width: 100%; max-width: 600px;"
               class="mx-auto brand-logo-glow"
               alt="18D Joyeros Logo"
-            />
+            >
           </div>
         </VCol>
 
@@ -92,16 +94,29 @@ const handleLogin = async () => {
           md="6"
           class="auth-form-side d-flex align-center justify-center pa-8 pa-sm-12"
         >
-          <div class="w-100" style="max-width: 420px;">
+          <div
+            class="w-100"
+            style="max-width: 420px;"
+          >
             <div class="text-center mb-8 d-md-none">
-              <VImg :src="currentLogo" max-width="180" class="mx-auto mb-4" />
+              <VImg
+                :src="currentLogo"
+                max-width="180"
+                class="mx-auto mb-4"
+              />
             </div>
 
             <div class="mb-8">
-              <h4 class="text-h4 mb-2 font-weight-bold" style="color: rgb(var(--v-theme-on-surface));">
+              <h4
+                class="text-h4 mb-2 font-weight-bold"
+                style="color: rgb(var(--v-theme-on-surface));"
+              >
                 Bienvenido a <span class="text-primary">18D</span>
               </h4>
-              <p class="text-body-1 mb-0" style="color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));">
+              <p
+                class="text-body-1 mb-0"
+                style="color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));"
+              >
                 Inicia sesión en tu cuenta para continuar
               </p>
             </div>

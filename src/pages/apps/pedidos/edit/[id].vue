@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { useDisenos3dStore } from '@/views/apps/disenos/useDisenos3dStore'
-import type { Diseno3d } from '@/views/apps/disenos/useDisenos3dStore'
+import { usePedidosStore } from '@/views/apps/pedidos/usePedidosStore'
 
-const disenoStore = useDisenos3dStore()
+const pedidoStore = usePedidosStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -10,11 +9,11 @@ const route = useRoute()
 const isFormValid = ref(false)
 const refForm = ref()
 const isSubmitting = ref(false)
-const isLoadingDiseno = ref(true)
+const isLoadingPedido = ref(true)
 const snackbar = ref({ show: false, message: '', color: 'success' })
 
 // 👉 Form data
-const disenoId = ref('')
+const pedidoId = ref('')
 const referencia = ref('')
 const titulo = ref('')
 const descripcion = ref('')
@@ -25,8 +24,14 @@ const peso = ref<number | null>(null)
 const colorId = ref<number | null>(null)
 const responsableId = ref('')
 const clienteId = ref('')
-const precioDiseno = ref(0)
-const precioImpresion = ref(0)
+const tieneDiseno = ref(false)
+const idDiseno = ref<string | null>(null)
+const disenoRef = ref<string | null>(null)
+const pesoFinal = ref<number>(0)
+const precioGramo = ref<number>(0)
+const precioAdicionales = ref<number>(0)
+const descripcionAdicionales = ref('')
+const estado = ref('pendiente_fabricar')
 
 // 👉 Image
 const imageFile = ref<File | null>(null)
@@ -39,56 +44,54 @@ const colores = ref<{ id: number; nombre: string }[]>([])
 const responsables = ref<{ id: string; nombre: string; apellido: string }[]>([])
 const clientes = ref<{ id: string; nombre: string; apellido: string }[]>([])
 
-// 👉 Color visual map
-const colorVisualMap: Record<string, string> = {
-  Amarillo: '#C9A84C',
-  Blanco: '#C0C0C0',
-  Rosado: '#E91E63',
-  Multicolor: 'linear-gradient(135deg, #C9A84C, #C0C0C0, #E91E63)',
-}
-
-// 👉 Load lookups & diseño data
+// 👉 Load lookups & pedido data
 const loadData = async () => {
-  isLoadingDiseno.value = true
+  isLoadingPedido.value = true
   try {
     const [coloresData, responsablesData, clientesData] = await Promise.all([
-      disenoStore.fetchColores(),
-      disenoStore.fetchResponsables(),
-      disenoStore.fetchClientes(),
+      pedidoStore.fetchColores(),
+      pedidoStore.fetchResponsables(),
+      pedidoStore.fetchClientes(),
     ])
 
     colores.value = coloresData
     responsables.value = responsablesData
     clientes.value = clientesData
 
-    // Cargar diseño
-    const diseno = await disenoStore.fetchDisenoById(String((route.params as any).id))
+    // Cargar pedido
+    const pedido = await pedidoStore.fetchPedidoById(String((route.params as any).id))
 
-    disenoId.value = diseno.id
-    referencia.value = diseno.referencia
-    titulo.value = diseno.titulo
-    descripcion.value = diseno.descripcion || ''
-    fechaInicio.value = diseno.fecha_inicio
-    fechaFin.value = diseno.fecha_fin
-    talla.value = diseno.talla || ''
-    peso.value = diseno.peso
-    colorId.value = diseno.color_id
-    responsableId.value = diseno.responsable_id
-    clienteId.value = diseno.cliente_id
-    precioDiseno.value = diseno.precio_diseno
-    precioImpresion.value = diseno.precio_impresion
-    currentImagePath.value = diseno.imagen
+    pedidoId.value = pedido.id
+    referencia.value = pedido.referencia
+    titulo.value = pedido.titulo
+    descripcion.value = pedido.descripcion || ''
+    fechaInicio.value = pedido.fecha_inicio
+    fechaFin.value = pedido.fecha_fin
+    talla.value = pedido.talla || ''
+    peso.value = pedido.peso
+    colorId.value = pedido.color_id
+    responsableId.value = pedido.responsable_id
+    clienteId.value = pedido.cliente_id
+    tieneDiseno.value = pedido.tiene_diseno
+    idDiseno.value = pedido.id_diseno
+    disenoRef.value = pedido.diseno?.referencia || null
+    pesoFinal.value = pedido.peso_final || 0
+    precioGramo.value = pedido.precio_gramo || 0
+    precioAdicionales.value = pedido.precio_adicionales || 0
+    descripcionAdicionales.value = pedido.descripcion_adicionales || ''
+    estado.value = pedido.estado
+    currentImagePath.value = pedido.imagen
 
     // Cargar preview de imagen actual
-    if (diseno.imagen)
-      imagePreview.value = disenoStore.getImageUrl(diseno.imagen)
+    if (pedido.imagen)
+      imagePreview.value = pedidoStore.getImageUrl(pedido.imagen)
   }
   catch (error) {
     console.error('Error loading data:', error)
-    snackbar.value = { show: true, message: 'Error al cargar el diseño', color: 'error' }
+    snackbar.value = { show: true, message: 'Error al cargar el pedido', color: 'error' }
   }
   finally {
-    isLoadingDiseno.value = false
+    isLoadingPedido.value = false
   }
 }
 
@@ -131,7 +134,13 @@ const removeImage = () => {
 }
 
 // 👉 Computed
-const precioTotal = computed(() => (precioDiseno.value || 0) + (precioImpresion.value || 0))
+const totalPedido = computed(() => {
+  const pf = pesoFinal.value || 0
+  const pg = precioGramo.value || 0
+  const pa = precioAdicionales.value || 0
+
+  return (pf * pg) + pa
+})
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-CO', {
@@ -144,7 +153,7 @@ const formatCurrency = (value: number) => {
 
 // 👉 Validators
 const requiredValidator = (v: any) => !!v || 'Campo requerido'
-const requiredSelectValidator = (v: any) => v !== null && v !== undefined && v !== '' || 'Selecciona una opción'
+const requiredSelectValidator = (v: any) => (v !== null && v !== undefined && v !== '') || 'Selecciona una opción'
 
 // 👉 Submit
 const onSubmit = async () => {
@@ -154,8 +163,8 @@ const onSubmit = async () => {
 
   isSubmitting.value = true
   try {
-    await disenoStore.updateDiseno(
-      disenoId.value,
+    await pedidoStore.updatePedido(
+      pedidoId.value,
       {
         titulo: titulo.value,
         descripcion: descripcion.value || null,
@@ -166,23 +175,29 @@ const onSubmit = async () => {
         color_id: colorId.value!,
         responsable_id: responsableId.value,
         cliente_id: clienteId.value,
-        precio_diseno: precioDiseno.value || 0,
-        precio_impresion: precioImpresion.value || 0,
+        tiene_diseno: tieneDiseno.value,
+        id_diseno: idDiseno.value,
+        peso_final: pesoFinal.value || 0,
+        precio_gramo: precioGramo.value || 0,
+        precio_adicionales: precioAdicionales.value || 0,
+        descripcion_adicionales: descripcionAdicionales.value || null,
+        total_pedido: totalPedido.value,
+        estado: estado.value,
         imagen: currentImagePath.value,
       },
       imageFile.value,
       removeCurrentImage.value,
     )
 
-    snackbar.value = { show: true, message: 'Diseño actualizado exitosamente', color: 'success' }
+    snackbar.value = { show: true, message: 'Pedido actualizado exitosamente', color: 'success' }
 
     setTimeout(() => {
-      router.push({ name: 'apps-disenos-list' })
+      router.push({ name: 'apps-pedidos-list' })
     }, 800)
   }
   catch (error: any) {
-    console.error('Error updating diseño:', error)
-    snackbar.value = { show: true, message: error.message || 'Error al actualizar el diseño', color: 'error' }
+    console.error('Error updating pedido:', error)
+    snackbar.value = { show: true, message: error.message || 'Error al actualizar el pedido', color: 'error' }
   }
   finally {
     isSubmitting.value = false
@@ -200,7 +215,7 @@ onBeforeUnmount(() => {
   <section>
     <!-- Loading state -->
     <div
-      v-if="isLoadingDiseno"
+      v-if="isLoadingPedido"
       class="d-flex justify-center align-center py-16"
     >
       <VProgressCircular
@@ -219,12 +234,12 @@ onBeforeUnmount(() => {
               icon
               variant="text"
               size="small"
-              :to="{ name: 'apps-disenos-list' }"
+              :to="{ name: 'apps-pedidos-list' }"
             >
               <VIcon icon="tabler-arrow-left" />
             </VBtn>
             <h4 class="text-h4 font-weight-bold">
-              Editar Diseño
+              Editar Pedido
             </h4>
             <VChip
               color="primary"
@@ -235,9 +250,28 @@ onBeforeUnmount(() => {
             >
               {{ referencia }}
             </VChip>
+            <!-- Estado badge -->
+            <VChip
+              v-if="estado === 'entregado'"
+              color="success"
+              variant="tonal"
+              size="small"
+              prepend-icon="tabler-circle-check"
+            >
+              Entregado
+            </VChip>
+            <VChip
+              v-else
+              color="warning"
+              variant="tonal"
+              size="small"
+              prepend-icon="tabler-clock"
+            >
+              Pendiente
+            </VChip>
           </div>
           <p class="text-body-1 text-disabled mb-0 ms-10">
-            Modifica la información del diseño
+            Modifica la información del pedido
           </p>
         </div>
       </div>
@@ -255,7 +289,7 @@ onBeforeUnmount(() => {
             cols="12"
             lg="8"
           >
-            <!-- Información Principal -->
+            <!-- Información del Pedido -->
             <VCard class="mb-6">
               <VCardText>
                 <div class="d-flex align-center gap-2 mb-4">
@@ -265,12 +299,12 @@ onBeforeUnmount(() => {
                     size="36"
                   >
                     <VIcon
-                      icon="tabler-cube-3d-sphere"
+                      icon="tabler-shopping-cart"
                       size="20"
                     />
                   </VAvatar>
                   <h6 class="text-h6 font-weight-medium">
-                    Información del Diseño
+                    Información del Pedido
                   </h6>
                 </div>
 
@@ -297,7 +331,7 @@ onBeforeUnmount(() => {
                     <AppTextField
                       v-model="titulo"
                       :rules="[requiredValidator]"
-                      label="Título del Diseño *"
+                      label="Título del Pedido *"
                       placeholder="Ej: Anillo de compromiso solitario"
                     />
                   </VCol>
@@ -307,7 +341,7 @@ onBeforeUnmount(() => {
                     <AppTextarea
                       v-model="descripcion"
                       label="Descripción"
-                      placeholder="Describe los detalles del diseño..."
+                      placeholder="Describe los detalles del pedido..."
                       rows="3"
                     />
                   </VCol>
@@ -401,9 +435,73 @@ onBeforeUnmount(() => {
                       placeholder="Ej: 3.5"
                       type="number"
                       step="0.001"
-                      hint="Peso del trabajo terminado"
+                      hint="Peso estimado del trabajo"
                       persistent-hint
                     />
+                  </VCol>
+                </VRow>
+              </VCardText>
+            </VCard>
+
+            <!-- Diseño Vinculado -->
+            <VCard class="mb-6">
+              <VCardText>
+                <div class="d-flex align-center gap-2 mb-4">
+                  <VAvatar
+                    color="secondary"
+                    variant="tonal"
+                    size="36"
+                  >
+                    <VIcon
+                      icon="tabler-cube-3d-sphere"
+                      size="20"
+                    />
+                  </VAvatar>
+                  <h6 class="text-h6 font-weight-medium">
+                    Diseño 3D
+                  </h6>
+                </div>
+
+                <VRow>
+                  <VCol cols="12">
+                    <div class="d-flex align-center gap-3">
+                      <VSwitch
+                        v-model="tieneDiseno"
+                        color="primary"
+                        :disabled="!!idDiseno"
+                      />
+                      <div>
+                        <span class="text-body-1 font-weight-medium">
+                          {{ tieneDiseno ? 'Este pedido incluye diseño 3D' : 'Sin diseño 3D' }}
+                        </span>
+                        <p class="text-sm text-disabled mb-0">
+                          {{ tieneDiseno ? (idDiseno ? 'Diseño ya vinculado a este pedido' : 'Se creará automáticamente al guardar') : 'El pedido no requiere diseño 3D' }}
+                        </p>
+                      </div>
+                    </div>
+                  </VCol>
+
+                  <!-- Info del diseño vinculado -->
+                  <VCol
+                    v-if="tieneDiseno && idDiseno"
+                    cols="12"
+                  >
+                    <VAlert
+                      type="success"
+                      variant="tonal"
+                      density="compact"
+                      class="mb-0"
+                    >
+                      <template #text>
+                        <div class="d-flex align-center gap-2">
+                          <VIcon
+                            icon="tabler-cube-3d-sphere"
+                            size="18"
+                          />
+                          <span>Diseño vinculado: <strong>{{ disenoRef }}</strong></span>
+                        </div>
+                      </template>
+                    </VAlert>
                   </VCol>
                 </VRow>
               </VCardText>
@@ -438,8 +536,8 @@ onBeforeUnmount(() => {
                       v-model="responsableId"
                       :rules="[requiredSelectValidator]"
                       :items="responsables.map(r => ({ value: r.id, title: `${r.nombre} ${r.apellido}` }))"
-                      label="Responsable (Diseñador) *"
-                      placeholder="Buscar diseñador..."
+                      label="Responsable *"
+                      placeholder="Buscar responsable..."
                     />
                   </VCol>
 
@@ -462,13 +560,13 @@ onBeforeUnmount(() => {
           </VCol>
 
           <!-- ======================== -->
-          <!-- COLUMNA DERECHA: Imagen + Precios -->
+          <!-- COLUMNA DERECHA: Imagen + Liquidación + Estado -->
           <!-- ======================== -->
           <VCol
             cols="12"
             lg="4"
           >
-            <!-- Imagen del Diseño -->
+            <!-- Imagen del Pedido -->
             <VCard class="mb-6">
               <VCardText>
                 <div class="d-flex align-center gap-2 mb-4">
@@ -546,7 +644,7 @@ onBeforeUnmount(() => {
               </VCardText>
             </VCard>
 
-            <!-- Precios -->
+            <!-- Liquidación -->
             <VCard class="mb-6">
               <VCardText>
                 <div class="d-flex align-center gap-2 mb-4">
@@ -561,15 +659,27 @@ onBeforeUnmount(() => {
                     />
                   </VAvatar>
                   <h6 class="text-h6 font-weight-medium">
-                    Precios
+                    Liquidación
                   </h6>
                 </div>
 
                 <VRow>
                   <VCol cols="12">
                     <AppTextField
-                      v-model.number="precioDiseno"
-                      label="Precio Diseño (COP)"
+                      v-model.number="pesoFinal"
+                      label="Peso Final (gramos)"
+                      placeholder="0"
+                      type="number"
+                      step="0.001"
+                      hint="Se actualiza al terminar el pedido"
+                      persistent-hint
+                    />
+                  </VCol>
+
+                  <VCol cols="12">
+                    <AppTextField
+                      v-model.number="precioGramo"
+                      label="Precio por Gramo (COP)"
                       placeholder="0"
                       type="number"
                       prefix="$"
@@ -578,8 +688,8 @@ onBeforeUnmount(() => {
 
                   <VCol cols="12">
                     <AppTextField
-                      v-model.number="precioImpresion"
-                      label="Precio Impresión (COP)"
+                      v-model.number="precioAdicionales"
+                      label="Precio Adicionales (COP)"
                       placeholder="0"
                       type="number"
                       prefix="$"
@@ -587,15 +697,65 @@ onBeforeUnmount(() => {
                   </VCol>
 
                   <VCol cols="12">
+                    <AppTextarea
+                      v-model="descripcionAdicionales"
+                      label="Descripción Adicionales"
+                      placeholder="Piedras, engaste, etc."
+                      rows="2"
+                    />
+                  </VCol>
+
+                  <VCol cols="12">
+                    <VDivider class="mb-3" />
+                    <div class="d-flex flex-column gap-1 mb-2">
+                      <div class="d-flex justify-space-between text-sm">
+                        <span class="text-disabled">Peso × Gramo:</span>
+                        <span>{{ formatCurrency((pesoFinal || 0) * (precioGramo || 0)) }}</span>
+                      </div>
+                      <div class="d-flex justify-space-between text-sm">
+                        <span class="text-disabled">Adicionales:</span>
+                        <span>{{ formatCurrency(precioAdicionales || 0) }}</span>
+                      </div>
+                    </div>
                     <VDivider class="mb-3" />
                     <div class="d-flex justify-space-between align-center">
-                      <span class="text-body-1 font-weight-medium">Total:</span>
+                      <span class="text-body-1 font-weight-medium">Total Pedido:</span>
                       <span class="text-h5 font-weight-bold text-primary">
-                        {{ formatCurrency(precioTotal) }}
+                        {{ formatCurrency(totalPedido) }}
                       </span>
                     </div>
                   </VCol>
                 </VRow>
+              </VCardText>
+            </VCard>
+
+            <!-- Estado -->
+            <VCard class="mb-6">
+              <VCardText>
+                <div class="d-flex align-center gap-2 mb-4">
+                  <VAvatar
+                    color="info"
+                    variant="tonal"
+                    size="36"
+                  >
+                    <VIcon
+                      icon="tabler-toggle-left"
+                      size="20"
+                    />
+                  </VAvatar>
+                  <h6 class="text-h6 font-weight-medium">
+                    Estado
+                  </h6>
+                </div>
+
+                <AppSelect
+                  v-model="estado"
+                  :items="[
+                    { value: 'pendiente_fabricar', title: 'Pendiente de Fabricar' },
+                    { value: 'entregado', title: 'Entregado' },
+                  ]"
+                  label="Estado del Pedido"
+                />
               </VCardText>
             </VCard>
 
@@ -610,14 +770,14 @@ onBeforeUnmount(() => {
                   prepend-icon="tabler-device-floppy"
                   class="mb-3"
                 >
-                  Actualizar Diseño
+                  Actualizar Pedido
                 </VBtn>
                 <VBtn
                   block
                   variant="tonal"
                   color="secondary"
                   prepend-icon="tabler-x"
-                  :to="{ name: 'apps-disenos-list' }"
+                  :to="{ name: 'apps-pedidos-list' }"
                 >
                   Cancelar
                 </VBtn>

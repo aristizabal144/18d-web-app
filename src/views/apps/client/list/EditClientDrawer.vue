@@ -25,7 +25,7 @@ const apellido = ref('')
 const telefono = ref('')
 
 // Al abrir el drawer, cargamos los datos del cliente
-watch(() => props.isDrawerOpen, (val) => {
+watch(() => props.isDrawerOpen, val => {
   if (val && props.client) {
     id.value = props.client.id
     nombre.value = props.client.nombre
@@ -66,8 +66,11 @@ const handleDrawerModelValueUpdate = (val: boolean) => {
 
 // Validaciones
 const requiredValidator = (v: string) => !!v || 'Campo requerido'
+
 const phoneValidator = (v: string) => {
-  if (!v) return true // Es opcional
+  if (!v)
+    return true // Es opcional
+
   return /^\+?[0-9\s\-()]{7,20}$/.test(v) || 'El teléfono debe tener entre 7 y 20 caracteres'
 }
 </script>

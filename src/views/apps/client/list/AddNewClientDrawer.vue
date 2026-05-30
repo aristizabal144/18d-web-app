@@ -57,9 +57,12 @@ const handleDrawerModelValueUpdate = (val: boolean) => {
 
 // Validaciones
 const requiredValidator = (v: string) => !!v || 'Campo requerido'
-const emailValidator = (v: string) => /.+@.+\..+/.test(v) || 'El email debe ser válido'
+const emailValidator = (v: string) => /.[^\n\r@\u2028\u2029]*@.+\..+/.test(v) || 'El email debe ser válido'
+
 const phoneValidator = (v: string) => {
-  if (!v) return true // Es opcional
+  if (!v)
+    return true // Es opcional
+
   return /^\+?[0-9\s\-()]{7,20}$/.test(v) || 'El teléfono debe tener entre 7 y 20 caracteres (números, espacios, -, +)'
 }
 </script>

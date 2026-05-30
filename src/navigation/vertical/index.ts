@@ -14,5 +14,9 @@ export default [
     to: { name: 'apps-disenos-list' },
     icon: { icon: 'tabler-cube-3d-sphere' },
   },
+  {
+    title: 'Pedidos',
+    to: { name: 'apps-pedidos-list' },
+    icon: { icon: 'tabler-shopping-cart' },
+  },
 ]
-

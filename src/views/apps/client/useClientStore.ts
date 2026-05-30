@@ -23,14 +23,15 @@ export const useClientStore = defineStore('ClientStore', {
         .select('*', { count: 'exact' })
         .eq('rol_id', 3) // Rol 3 = Cliente
 
-      if (q) {
+      if (q)
         query = query.or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%`)
-      }
 
       if (sortBy.length > 0) {
         const sort = sortBy[0]
+
         query = query.order(sort.key, { ascending: sort.order === 'asc' })
-      } else {
+      }
+      else {
         query = query.order('created_at', { ascending: false })
       }
 
@@ -38,6 +39,7 @@ export const useClientStore = defineStore('ClientStore', {
       if (itemsPerPage !== -1) { // -1 significa mostrar todos
         const from = (page - 1) * itemsPerPage
         const to = from + itemsPerPage - 1
+
         query = query.range(from, to)
       }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/utils/supabase'
 
@@ -30,7 +30,8 @@ const handleLogout = async () => {
   try {
     await supabase.auth.signOut()
     router.push('/login')
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error during logout:', error)
   }
 }

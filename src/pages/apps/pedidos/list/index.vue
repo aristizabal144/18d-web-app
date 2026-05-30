@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { useDisenos3dStore } from '@/views/apps/disenos/useDisenos3dStore'
-import type { Diseno3d } from '@/views/apps/disenos/useDisenos3dStore'
+import { usePedidosStore } from '@/views/apps/pedidos/usePedidosStore'
+import type { Pedido } from '@/views/apps/pedidos/usePedidosStore'
 
 // 👉 Store
-const disenoStore = useDisenos3dStore()
-const router = useRouter()
+const pedidoStore = usePedidosStore()
 
 // 👉 State
 const searchQuery = ref('')
 const selectedColor = ref<number | null>(null)
+const selectedEstado = ref<string | null>(null)
 const viewMode = ref<'table' | 'cards'>('table')
 
 const itemsPerPage = ref(10)
@@ -16,10 +16,16 @@ const page = ref(1)
 const sortBy = ref()
 const orderBy = ref()
 
-const totalDisenos = ref(0)
-const disenos = ref<Diseno3d[]>([])
+const totalPedidos = ref(0)
+const pedidos = ref<Pedido[]>([])
 const isLoading = ref(false)
 const colores = ref<{ id: number; nombre: string }[]>([])
+
+// 👉 Estado badge map
+const estadoMap: Record<string, { color: string; icon: string; label: string }> = {
+  pendiente_fabricar: { color: 'warning', icon: 'tabler-clock', label: 'Pendiente' },
+  entregado: { color: 'success', icon: 'tabler-circle-check', label: 'Entregado' },
+}
 
 // 👉 Color badge map
 const colorMap: Record<string, { color: string; bgColor: string }> = {
@@ -29,25 +35,34 @@ const colorMap: Record<string, { color: string; bgColor: string }> = {
   Multicolor: { color: '#7C4DFF', bgColor: 'rgba(124, 77, 255, 0.12)' },
 }
 
+// 👉 Estados para filtro
+const estadosOptions = [
+  { value: null, title: 'Todos' },
+  { value: 'pendiente_fabricar', title: 'Pendiente' },
+  { value: 'entregado', title: 'Entregado' },
+]
+
 // 👉 Headers
 const headers = [
-  { title: 'REFERENCIA', key: 'referencia', width: '120px' },
-  { title: 'DISEÑO', key: 'titulo' },
+  { title: 'REFERENCIA', key: 'referencia', width: '130px' },
+  { title: 'PEDIDO', key: 'titulo' },
+  { title: 'ESTADO', key: 'estado', width: '140px' },
   { title: 'COLOR ORO', key: 'color_id', sortable: false, width: '130px' },
   { title: 'CLIENTE', key: 'cliente_id', sortable: false },
   { title: 'RESPONSABLE', key: 'responsable_id', sortable: false },
   { title: 'FECHAS', key: 'fecha_inicio', width: '200px' },
-  { title: 'PRECIO TOTAL', key: 'precio_diseno', width: '140px' },
+  { title: 'TOTAL', key: 'total_pedido', width: '140px' },
   { title: 'ACCIONES', key: 'actions', sortable: false, width: '100px' },
 ]
 
-// 👉 Fetch Diseños
-const fetchDisenos = async () => {
+// 👉 Fetch Pedidos
+const fetchPedidos = async () => {
   isLoading.value = true
   try {
-    const { disenos: data, totalDisenos: total } = await disenoStore.fetchDisenos({
+    const { pedidos: data, totalPedidos: total } = await pedidoStore.fetchPedidos({
       q: searchQuery.value,
       colorId: selectedColor.value,
+      estado: selectedEstado.value,
       options: {
         page: page.value,
         itemsPerPage: itemsPerPage.value,
@@ -55,8 +70,8 @@ const fetchDisenos = async () => {
       },
     })
 
-    disenos.value = data
-    totalDisenos.value = total
+    pedidos.value = data
+    totalPedidos.value = total
   }
   catch (error) {
     console.error(error)
@@ -69,7 +84,7 @@ const fetchDisenos = async () => {
 // 👉 Fetch colores para filtro
 const loadColores = async () => {
   try {
-    colores.value = await disenoStore.fetchColores()
+    colores.value = await pedidoStore.fetchColores()
   }
   catch (error) {
     console.error(error)
@@ -77,25 +92,25 @@ const loadColores = async () => {
 }
 
 // Watchers para refetching
-watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedColor], () => {
-  fetchDisenos()
+watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedColor, selectedEstado], () => {
+  fetchPedidos()
 }, { deep: true })
 
 // Fetch inicial
 onMounted(() => {
-  fetchDisenos()
+  fetchPedidos()
   loadColores()
 })
 
-// 👉 Delete Diseño
-const deleteDiseno = async (id: string) => {
-  if (confirm('¿Estás seguro de que deseas eliminar este diseño? Esta acción no se puede deshacer.')) {
+// 👉 Delete Pedido
+const deletePedido = async (id: string) => {
+  if (confirm('¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.')) {
     try {
-      await disenoStore.deleteDiseno(id)
-      fetchDisenos()
+      await pedidoStore.deletePedido(id)
+      fetchPedidos()
     }
     catch (error) {
-      console.error('Error deleting diseño', error)
+      console.error('Error deleting pedido', error)
     }
   }
 }
@@ -120,17 +135,18 @@ const getImageUrl = (path: string | null) => {
   if (!path)
     return null
 
-  return disenoStore.getImageUrl(path)
+  return pedidoStore.getImageUrl(path)
 }
 
-const getColorInfo = (diseno: Diseno3d) => {
-  const nombre = diseno.color_oro?.nombre || 'Amarillo'
+const getColorInfo = (pedido: Pedido) => {
+  const nombre = pedido.color_oro?.nombre || 'Amarillo'
 
   return colorMap[nombre] || colorMap.Amarillo
 }
 
-// 👉 Paginación para vista cards
-const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.value))
+const getEstadoInfo = (estado: string) => {
+  return estadoMap[estado] || estadoMap.pendiente_fabricar
+}
 </script>
 
 <template>
@@ -155,6 +171,17 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
         <VSpacer />
 
         <div class="d-flex align-center flex-wrap gap-4">
+          <!-- 👉 Filtro por estado -->
+          <div style="inline-size: 10rem;">
+            <AppSelect
+              v-model="selectedEstado"
+              :items="estadosOptions"
+              placeholder="Estado"
+              density="compact"
+              clearable
+            />
+          </div>
+
           <!-- 👉 Filtro por color -->
           <div style="inline-size: 10rem;">
             <AppSelect
@@ -200,9 +227,9 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
           <!-- 👉 Botón Agregar -->
           <VBtn
             prepend-icon="tabler-plus"
-            :to="{ name: 'apps-disenos-create' }"
+            :to="{ name: 'apps-pedidos-create' }"
           >
-            Nuevo Diseño
+            Nuevo Pedido
           </VBtn>
         </div>
       </VCardText>
@@ -216,8 +243,8 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
         v-if="viewMode === 'table'"
         v-model:items-per-page="itemsPerPage"
         v-model:page="page"
-        :items="disenos"
-        :items-length="totalDisenos"
+        :items="pedidos"
+        :items-length="totalPedidos"
         :headers="headers"
         :loading="isLoading"
         class="text-no-wrap"
@@ -247,7 +274,7 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
               variant="tonal"
             >
               <VIcon
-                icon="tabler-cube-3d-sphere"
+                icon="tabler-shopping-cart"
                 size="22"
               />
             </VAvatar>
@@ -272,6 +299,18 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
               {{ item.descripcion }}
             </span>
           </div>
+        </template>
+
+        <!-- Estado -->
+        <template #item.estado="{ item }">
+          <VChip
+            :color="getEstadoInfo(item.estado).color"
+            size="small"
+            variant="tonal"
+            :prepend-icon="getEstadoInfo(item.estado).icon"
+          >
+            {{ getEstadoInfo(item.estado).label }}
+          </VChip>
         </template>
 
         <!-- Color Oro -->
@@ -346,19 +385,19 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
           </div>
         </template>
 
-        <!-- Precio Total -->
-        <template #item.precio_diseno="{ item }">
+        <!-- Total Pedido -->
+        <template #item.total_pedido="{ item }">
           <span class="font-weight-bold text-primary">
-            {{ formatCurrency(item.precio_diseno + item.precio_impresion) }}
+            {{ formatCurrency(item.total_pedido || 0) }}
           </span>
         </template>
 
         <!-- Acciones -->
         <template #item.actions="{ item }">
-          <IconBtn :to="{ name: 'apps-disenos-edit-id', params: { id: item.id } }">
+          <IconBtn :to="{ name: 'apps-pedidos-edit-id', params: { id: item.id } }">
             <VIcon icon="tabler-edit" />
           </IconBtn>
-          <IconBtn @click="deleteDiseno(item.id)">
+          <IconBtn @click="deletePedido(item.id)">
             <VIcon icon="tabler-trash" />
           </IconBtn>
         </template>
@@ -368,7 +407,7 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
           <TablePagination
             v-model:page="page"
             :items-per-page="itemsPerPage"
-            :total-items="totalDisenos"
+            :total-items="totalPedidos"
           />
         </template>
       </VDataTableServer>
@@ -385,50 +424,61 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
         />
 
         <!-- Cards Grid -->
-        <VCardText v-if="disenos.length > 0">
+        <VCardText v-if="pedidos.length > 0">
           <VRow>
             <VCol
-              v-for="diseno in disenos"
-              :key="diseno.id"
+              v-for="pedido in pedidos"
+              :key="pedido.id"
               cols="12"
               sm="6"
               md="4"
               lg="3"
             >
               <VCard
-                class="diseno-card"
+                class="pedido-card"
                 variant="outlined"
                 hover
               >
                 <!-- Imagen / Placeholder -->
-                <div class="diseno-card__image-wrapper">
+                <div class="pedido-card__image-wrapper">
                   <VImg
-                    v-if="getImageUrl(diseno.imagen)"
-                    :src="getImageUrl(diseno.imagen)!"
+                    v-if="getImageUrl(pedido.imagen)"
+                    :src="getImageUrl(pedido.imagen)!"
                     height="180"
                     cover
-                    class="diseno-card__image"
+                    class="pedido-card__image"
                   />
                   <div
                     v-else
-                    class="diseno-card__placeholder d-flex align-center justify-center"
+                    class="pedido-card__placeholder d-flex align-center justify-center"
                   >
                     <VIcon
-                      icon="tabler-cube-3d-sphere"
+                      icon="tabler-shopping-cart"
                       size="48"
                       color="primary"
                       style="opacity: 0.4;"
                     />
                   </div>
 
+                  <!-- Badge de estado -->
+                  <VChip
+                    size="small"
+                    :color="getEstadoInfo(pedido.estado).color"
+                    variant="flat"
+                    class="pedido-card__estado-badge"
+                    :prepend-icon="getEstadoInfo(pedido.estado).icon"
+                  >
+                    {{ getEstadoInfo(pedido.estado).label }}
+                  </VChip>
+
                   <!-- Badge de color -->
                   <VChip
                     size="small"
                     variant="flat"
-                    class="diseno-card__color-badge"
+                    class="pedido-card__color-badge"
                     :style="{
-                      backgroundColor: getColorInfo(diseno).bgColor,
-                      color: getColorInfo(diseno).color,
+                      backgroundColor: getColorInfo(pedido).bgColor,
+                      color: getColorInfo(pedido).color,
                       backdropFilter: 'blur(8px)',
                     }"
                   >
@@ -436,9 +486,9 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                       icon="tabler-circle-filled"
                       size="8"
                       class="me-1"
-                      :style="{ color: getColorInfo(diseno).color }"
+                      :style="{ color: getColorInfo(pedido).color }"
                     />
-                    {{ diseno.color_oro?.nombre }}
+                    {{ pedido.color_oro?.nombre }}
                   </VChip>
 
                   <!-- Referencia badge -->
@@ -446,24 +496,24 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                     size="small"
                     color="dark"
                     variant="flat"
-                    class="diseno-card__ref-badge"
+                    class="pedido-card__ref-badge"
                     style="font-family: monospace; letter-spacing: 0.5px;"
                   >
-                    {{ diseno.referencia }}
+                    {{ pedido.referencia }}
                   </VChip>
                 </div>
 
                 <VCardText class="pb-2">
                   <!-- Título y descripción -->
                   <h6 class="text-base font-weight-semibold mb-1">
-                    {{ diseno.titulo }}
+                    {{ pedido.titulo }}
                   </h6>
                   <p
-                    v-if="diseno.descripcion"
-                    class="text-sm text-disabled mb-3 text-truncate-2"
+                    v-if="pedido.descripcion"
+                    class="text-sm text-disabled mb-3"
                     style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
                   >
-                    {{ diseno.descripcion }}
+                    {{ pedido.descripcion }}
                   </p>
 
                   <VDivider class="mb-3" />
@@ -477,9 +527,9 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                         color="info"
                         variant="tonal"
                       >
-                        {{ diseno.cliente?.nombre?.charAt(0)?.toUpperCase() || 'C' }}
+                        {{ pedido.cliente?.nombre?.charAt(0)?.toUpperCase() || 'C' }}
                       </VAvatar>
-                      <span class="text-sm">{{ diseno.cliente?.nombre }} {{ diseno.cliente?.apellido }}</span>
+                      <span class="text-sm">{{ pedido.cliente?.nombre }} {{ pedido.cliente?.apellido }}</span>
                     </div>
                     <!-- Responsable -->
                     <div class="d-flex align-center gap-2">
@@ -488,10 +538,23 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                         color="warning"
                         variant="tonal"
                       >
-                        {{ diseno.responsable?.nombre?.charAt(0)?.toUpperCase() || 'R' }}
+                        {{ pedido.responsable?.nombre?.charAt(0)?.toUpperCase() || 'R' }}
                       </VAvatar>
-                      <span class="text-sm text-disabled">{{ diseno.responsable?.nombre }} {{ diseno.responsable?.apellido }}</span>
+                      <span class="text-sm text-disabled">{{ pedido.responsable?.nombre }} {{ pedido.responsable?.apellido }}</span>
                     </div>
+                  </div>
+
+                  <!-- Diseño vinculado -->
+                  <div
+                    v-if="pedido.tiene_diseno && pedido.diseno"
+                    class="d-flex align-center gap-2 mb-3"
+                  >
+                    <VIcon
+                      icon="tabler-cube-3d-sphere"
+                      size="16"
+                      color="primary"
+                    />
+                    <span class="text-sm text-primary font-weight-medium">{{ pedido.diseno.referencia }}</span>
                   </div>
 
                   <!-- Fechas -->
@@ -502,7 +565,7 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                         size="14"
                         class="me-1"
                       />
-                      {{ formatDate(diseno.fecha_inicio) }}
+                      {{ formatDate(pedido.fecha_inicio) }}
                     </span>
                     <span class="text-disabled">
                       <VIcon
@@ -510,7 +573,7 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                         size="14"
                         class="me-1"
                       />
-                      {{ formatDate(diseno.fecha_fin) }}
+                      {{ formatDate(pedido.fecha_fin) }}
                     </span>
                   </div>
 
@@ -519,12 +582,12 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                   <!-- Precios y acciones -->
                   <div class="d-flex align-center justify-space-between">
                     <span class="text-primary font-weight-bold">
-                      {{ formatCurrency(diseno.precio_diseno + diseno.precio_impresion) }}
+                      {{ formatCurrency(pedido.total_pedido || 0) }}
                     </span>
                     <div>
                       <IconBtn
                         size="small"
-                        :to="{ name: 'apps-disenos-edit-id', params: { id: diseno.id } }"
+                        :to="{ name: 'apps-pedidos-edit-id', params: { id: pedido.id } }"
                       >
                         <VIcon
                           icon="tabler-edit"
@@ -533,7 +596,7 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                       </IconBtn>
                       <IconBtn
                         size="small"
-                        @click="deleteDiseno(diseno.id)"
+                        @click="deletePedido(pedido.id)"
                       >
                         <VIcon
                           icon="tabler-trash"
@@ -554,32 +617,32 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
           class="d-flex flex-column align-center justify-center py-10"
         >
           <VIcon
-            icon="tabler-cube-3d-sphere"
+            icon="tabler-shopping-cart"
             size="64"
             color="secondary"
             class="mb-4"
             style="opacity: 0.3;"
           />
           <h6 class="text-h6 text-disabled mb-1">
-            Sin diseños
+            Sin pedidos
           </h6>
           <p class="text-sm text-disabled mb-4">
-            No se encontraron diseños con los filtros actuales.
+            No se encontraron pedidos con los filtros actuales.
           </p>
           <VBtn
             prepend-icon="tabler-plus"
-            :to="{ name: 'apps-disenos-create' }"
+            :to="{ name: 'apps-pedidos-create' }"
           >
-            Crear Primer Diseño
+            Crear Primer Pedido
           </VBtn>
         </VCardText>
 
         <!-- Cards Pagination -->
         <TablePagination
-          v-if="disenos.length > 0"
+          v-if="pedidos.length > 0"
           v-model:page="page"
           :items-per-page="itemsPerPage"
-          :total-items="totalDisenos"
+          :total-items="totalPedidos"
         />
       </div>
     </VCard>
@@ -587,7 +650,7 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
 </template>
 
 <style lang="scss" scoped>
-.diseno-card {
+.pedido-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   overflow: hidden;
 
@@ -614,9 +677,15 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
     background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.05), rgba(var(--v-theme-primary), 0.12));
   }
 
-  &__color-badge {
+  &__estado-badge {
     position: absolute;
     inset-block-start: 10px;
+    inset-inline-end: 10px;
+  }
+
+  &__color-badge {
+    position: absolute;
+    inset-block-end: 10px;
     inset-inline-end: 10px;
   }
 
