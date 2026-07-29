@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useDisenos3dStore } from '@/views/apps/disenos/useDisenos3dStore'
 import type { Diseno3d } from '@/views/apps/disenos/useDisenos3dStore'
+import FichaJoyeroDialog from '@/components/dialogs/FichaJoyeroDialog.vue'
 
 // 👉 Store
 const disenoStore = useDisenos3dStore()
@@ -20,6 +21,15 @@ const totalDisenos = ref(0)
 const disenos = ref<Diseno3d[]>([])
 const isLoading = ref(false)
 const colores = ref<{ id: number; nombre: string }[]>([])
+
+// 👉 Ficha Joyero dialog
+const joyeroDialogOpen = ref(false)
+const selectedJoyeroDiseno = ref<Diseno3d | null>(null)
+
+const openJoyeroDialog = (diseno: Diseno3d) => {
+  selectedJoyeroDiseno.value = diseno
+  joyeroDialogOpen.value = true
+}
 
 // 👉 Color badge map
 const colorMap: Record<string, { color: string; bgColor: string }> = {
@@ -238,6 +248,9 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
               size="38"
               rounded
               :image="getImageUrl(item.imagen)!"
+              style="cursor: pointer;"
+              title="Ver Ficha para Joyero"
+              @click="openJoyeroDialog(item)"
             />
             <VAvatar
               v-else
@@ -245,6 +258,9 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
               rounded
               color="primary"
               variant="tonal"
+              style="cursor: pointer;"
+              title="Ver Ficha para Joyero"
+              @click="openJoyeroDialog(item)"
             >
               <VIcon
                 icon="tabler-cube-3d-sphere"
@@ -252,8 +268,10 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
               />
             </VAvatar>
             <span
-              class="font-weight-bold"
+              class="font-weight-bold cursor-pointer"
               style="font-family: monospace; letter-spacing: 0.5px;"
+              title="Ver Ficha para Joyero"
+              @click="openJoyeroDialog(item)"
             >
               {{ item.referencia }}
             </span>
@@ -355,6 +373,12 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
 
         <!-- Acciones -->
         <template #item.actions="{ item }">
+          <IconBtn
+            title="Ficha para Joyero"
+            @click="openJoyeroDialog(item)"
+          >
+            <VIcon icon="tabler-jewel" color="warning" />
+          </IconBtn>
           <IconBtn :to="{ name: 'apps-disenos-edit-id', params: { id: item.id } }">
             <VIcon icon="tabler-edit" />
           </IconBtn>
@@ -401,7 +425,12 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                 hover
               >
                 <!-- Imagen / Placeholder -->
-                <div class="diseno-card__image-wrapper">
+                <div
+                  class="diseno-card__image-wrapper"
+                  style="cursor: pointer;"
+                  title="Oprime para ver Ficha para Joyero"
+                  @click="openJoyeroDialog(diseno)"
+                >
                   <VImg
                     v-if="getImageUrl(diseno.imagen)"
                     :src="getImageUrl(diseno.imagen)!"
@@ -419,6 +448,12 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                       color="primary"
                       style="opacity: 0.4;"
                     />
+                  </div>
+
+                  <!-- Overlay al pasar el mouse -->
+                  <div class="diseno-card__image-overlay">
+                    <VIcon icon="tabler-jewel" size="28" color="warning" />
+                    <span class="text-xs text-white font-weight-medium mt-1">Ver Ficha Joyero</span>
                   </div>
 
                   <!-- Badge de color -->
@@ -524,6 +559,17 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
                     <div>
                       <IconBtn
                         size="small"
+                        title="Ficha Joyero"
+                        @click="openJoyeroDialog(diseno)"
+                      >
+                        <VIcon
+                          icon="tabler-jewel"
+                          size="18"
+                          color="warning"
+                        />
+                      </IconBtn>
+                      <IconBtn
+                        size="small"
                         :to="{ name: 'apps-disenos-edit-id', params: { id: diseno.id } }"
                       >
                         <VIcon
@@ -583,6 +629,12 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
         />
       </div>
     </VCard>
+
+    <!-- 👉 Dialog Ficha de Joyero -->
+    <FichaJoyeroDialog
+      v-model="joyeroDialogOpen"
+      :item="selectedJoyeroDiseno ? { ...selectedJoyeroDiseno, type: 'diseno' } : null"
+    />
   </section>
 </template>
 
@@ -599,6 +651,10 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
   &__image-wrapper {
     position: relative;
     overflow: hidden;
+
+    &:hover .diseno-card__image-overlay {
+      opacity: 1;
+    }
   }
 
   &__image {
@@ -607,6 +663,20 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
 
   &:hover &__image {
     transform: scale(1.05);
+  }
+
+  &__image-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(2px);
+    z-index: 2;
   }
 
   &__placeholder {

@@ -19,4 +19,9 @@ export default [
     to: { name: 'apps-pedidos-list' },
     icon: { icon: 'tabler-shopping-cart' },
   },
+  {
+    title: 'Gastos',
+    to: { name: 'apps-gastos-list' },
+    icon: { icon: 'tabler-wallet' },
+  },
 ]

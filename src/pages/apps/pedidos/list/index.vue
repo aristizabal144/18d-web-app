@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { usePedidosStore } from '@/views/apps/pedidos/usePedidosStore'
-import type { Pedido } from '@/views/apps/pedidos/usePedidosStore'
+import type { Pedido, ResumenPagos } from '@/views/apps/pedidos/usePedidosStore'
+import PedidoAbonosDialog from '@/views/apps/pedidos/PedidoAbonosDialog.vue'
+import FichaJoyeroDialog from '@/components/dialogs/FichaJoyeroDialog.vue'
+import FacturaPedidoDialog from '@/components/dialogs/FacturaPedidoDialog.vue'
 
 // 👉 Store
 const pedidoStore = usePedidosStore()
@@ -9,6 +12,7 @@ const pedidoStore = usePedidosStore()
 const searchQuery = ref('')
 const selectedColor = ref<number | null>(null)
 const selectedEstado = ref<string | null>(null)
+const selectedEstadoPago = ref<string | null>(null)
 const viewMode = ref<'table' | 'cards'>('table')
 
 const itemsPerPage = ref(10)
@@ -21,10 +25,50 @@ const pedidos = ref<Pedido[]>([])
 const isLoading = ref(false)
 const colores = ref<{ id: number; nombre: string }[]>([])
 
+// 👉 Abonos dialog
+const abonosDialogOpen = ref(false)
+const selectedPedido = ref<Pedido | null>(null)
+
+// 👉 Ficha Joyero dialog
+const joyeroDialogOpen = ref(false)
+const selectedJoyeroPedido = ref<Pedido | null>(null)
+
+const openJoyeroDialog = (pedido: Pedido) => {
+  selectedJoyeroPedido.value = pedido
+  joyeroDialogOpen.value = true
+}
+
+// 👉 Factura / Comprobante dialog
+const facturaDialogOpen = ref(false)
+const selectedFacturaPedido = ref<Pedido | null>(null)
+
+const openFacturaDialog = (pedido: Pedido) => {
+  selectedFacturaPedido.value = pedido
+  facturaDialogOpen.value = true
+}
+// Cache de resumenes de pago por pedido_id
+const resumenesCache = ref<Record<string, ResumenPagos>>({})
+
 // 👉 Estado badge map
 const estadoMap: Record<string, { color: string; icon: string; label: string }> = {
   pendiente_fabricar: { color: 'warning', icon: 'tabler-clock', label: 'Pendiente' },
   entregado: { color: 'success', icon: 'tabler-circle-check', label: 'Entregado' },
+}
+
+// 👉 Estado de pago helpers
+const estadoPagoMap: Record<string, { color: string; icon: string; label: string }> = {
+  pagado: { color: 'success', icon: 'tabler-circle-check', label: 'Pagado' },
+  pendiente_pago: { color: 'error', icon: 'tabler-alert-circle', label: 'Pendiente' },
+  anticipo: { color: 'warning', icon: 'tabler-exclamation-circle', label: 'Anticipo' },
+}
+
+const getEstadoPago = (pedidoId: string) => {
+  const res = resumenesCache.value[pedidoId]
+  if (!res) return null
+  if (res.saldo_pendiente === 0 && res.total_abonado > 0) return 'pagado'
+  if (res.saldo_pendiente < 0) return 'anticipo'
+  if (res.total_abonado > 0) return 'pendiente_pago'
+  return null // sin abonos
 }
 
 // 👉 Color badge map
@@ -38,8 +82,16 @@ const colorMap: Record<string, { color: string; bgColor: string }> = {
 // 👉 Estados para filtro
 const estadosOptions = [
   { value: null, title: 'Todos' },
-  { value: 'pendiente_fabricar', title: 'Pendiente' },
+  { value: 'pendiente_fabricar', title: 'Pendiente fabricar' },
   { value: 'entregado', title: 'Entregado' },
+]
+
+// 👉 Estados de pago para filtro
+const estadosPagoOptions = [
+  { value: null, title: 'Todos' },
+  { value: 'pagado', title: 'Pagados' },
+  { value: 'pendiente_pago', title: 'Con saldo pendiente' },
+  { value: 'sin_abonos', title: 'Sin abonos' },
 ]
 
 // 👉 Headers
@@ -47,12 +99,11 @@ const headers = [
   { title: 'REFERENCIA', key: 'referencia', width: '130px' },
   { title: 'PEDIDO', key: 'titulo' },
   { title: 'ESTADO', key: 'estado', width: '140px' },
-  { title: 'COLOR ORO', key: 'color_id', sortable: false, width: '130px' },
   { title: 'CLIENTE', key: 'cliente_id', sortable: false },
-  { title: 'RESPONSABLE', key: 'responsable_id', sortable: false },
   { title: 'FECHAS', key: 'fecha_inicio', width: '200px' },
   { title: 'TOTAL', key: 'total_pedido', width: '140px' },
-  { title: 'ACCIONES', key: 'actions', sortable: false, width: '100px' },
+  { title: 'PAGOS', key: 'pagos', sortable: false, width: '140px' },
+  { title: 'ACCIONES', key: 'actions', sortable: false, width: '120px' },
 ]
 
 // 👉 Fetch Pedidos
@@ -63,6 +114,7 @@ const fetchPedidos = async () => {
       q: searchQuery.value,
       colorId: selectedColor.value,
       estado: selectedEstado.value,
+      estadoPago: selectedEstadoPago.value,
       options: {
         page: page.value,
         itemsPerPage: itemsPerPage.value,
@@ -72,6 +124,14 @@ const fetchPedidos = async () => {
 
     pedidos.value = data
     totalPedidos.value = total
+
+    // Cargar resumenes de pago para todos los pedidos
+    const resumenes = await Promise.all(
+      data.map(p => pedidoStore.fetchResumenPagos(p.id).then(r => ({ id: p.id, r })))
+    )
+    resumenes.forEach(({ id, r }) => {
+      resumenesCache.value[id] = r
+    })
   }
   catch (error) {
     console.error(error)
@@ -92,7 +152,7 @@ const loadColores = async () => {
 }
 
 // Watchers para refetching
-watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedColor, selectedEstado], () => {
+watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedColor, selectedEstado, selectedEstadoPago], () => {
   fetchPedidos()
 }, { deep: true })
 
@@ -114,6 +174,25 @@ const deletePedido = async (id: string) => {
     }
   }
 }
+
+// 👉 Abrir dialog de abonos
+const openAbonosDialog = (pedido: Pedido) => {
+  selectedPedido.value = pedido
+  abonosDialogOpen.value = true
+}
+
+// 👉 Al cerrar dialog, recargar resumen del pedido seleccionado
+const onAbonosDialogClose = () => {
+  if (selectedPedido.value)
+    pedidoStore.fetchResumenPagos(selectedPedido.value.id).then(r => {
+      resumenesCache.value[selectedPedido.value!.id] = r
+    })
+}
+
+// Observar cuando el dialog se cierra para actualizar el resumen
+watch(abonosDialogOpen, val => {
+  if (!val) onAbonosDialogClose()
+})
 
 // 👉 Helpers
 const formatDate = (dateString: string) => {
@@ -176,7 +255,18 @@ const getEstadoInfo = (estado: string) => {
             <AppSelect
               v-model="selectedEstado"
               :items="estadosOptions"
-              placeholder="Estado"
+              placeholder="Estado fab."
+              density="compact"
+              clearable
+            />
+          </div>
+
+          <!-- 👉 Filtro por estado de pago -->
+          <div style="inline-size: 12rem;">
+            <AppSelect
+              v-model="selectedEstadoPago"
+              :items="estadosPagoOptions"
+              placeholder="Estado pago"
               density="compact"
               clearable
             />
@@ -265,6 +355,9 @@ const getEstadoInfo = (estado: string) => {
               size="38"
               rounded
               :image="getImageUrl(item.imagen)!"
+              style="cursor: pointer;"
+              title="Ver Ficha para Joyero"
+              @click="openJoyeroDialog(item)"
             />
             <VAvatar
               v-else
@@ -272,6 +365,9 @@ const getEstadoInfo = (estado: string) => {
               rounded
               color="primary"
               variant="tonal"
+              style="cursor: pointer;"
+              title="Ver Ficha para Joyero"
+              @click="openJoyeroDialog(item)"
             >
               <VIcon
                 icon="tabler-shopping-cart"
@@ -279,8 +375,10 @@ const getEstadoInfo = (estado: string) => {
               />
             </VAvatar>
             <span
-              class="font-weight-bold"
+              class="font-weight-bold cursor-pointer"
               style="font-family: monospace; letter-spacing: 0.5px;"
+              title="Ver Ficha para Joyero"
+              @click="openJoyeroDialog(item)"
             >
               {{ item.referencia }}
             </span>
@@ -392,8 +490,54 @@ const getEstadoInfo = (estado: string) => {
           </span>
         </template>
 
+        <!-- Pagos -->
+        <template #item.pagos="{ item }">
+          <div v-if="resumenesCache[item.id]">
+            <VChip
+              :color="estadoPagoMap[getEstadoPago(item.id) || 'pendiente_pago']?.color || 'secondary'"
+              :prepend-icon="estadoPagoMap[getEstadoPago(item.id) || 'pendiente_pago']?.icon || 'tabler-minus'"
+              size="x-small"
+              variant="tonal"
+              class="mb-1"
+            >
+              {{ estadoPagoMap[getEstadoPago(item.id)!]?.label || 'Sin abonos' }}
+            </VChip>
+            <div
+              v-if="resumenesCache[item.id].saldo_pendiente !== 0"
+              class="text-xs text-disabled"
+            >
+              Saldo: {{ formatCurrency(resumenesCache[item.id].saldo_pendiente) }}
+            </div>
+          </div>
+          <VProgressCircular
+            v-else
+            size="16"
+            width="2"
+            indeterminate
+            color="secondary"
+          />
+        </template>
+
         <!-- Acciones -->
         <template #item.actions="{ item }">
+          <IconBtn
+            title="Factura / Comprobante"
+            @click="openFacturaDialog(item)"
+          >
+            <VIcon icon="tabler-file-invoice" color="primary" />
+          </IconBtn>
+          <IconBtn
+            title="Ficha para Joyero"
+            @click="openJoyeroDialog(item)"
+          >
+            <VIcon icon="tabler-jewel" color="warning" />
+          </IconBtn>
+          <IconBtn
+            title="Gestionar pagos"
+            @click="openAbonosDialog(item)"
+          >
+            <VIcon icon="tabler-cash" />
+          </IconBtn>
           <IconBtn :to="{ name: 'apps-pedidos-edit-id', params: { id: item.id } }">
             <VIcon icon="tabler-edit" />
           </IconBtn>
@@ -440,7 +584,12 @@ const getEstadoInfo = (estado: string) => {
                 hover
               >
                 <!-- Imagen / Placeholder -->
-                <div class="pedido-card__image-wrapper">
+                <div
+                  class="pedido-card__image-wrapper"
+                  style="cursor: pointer;"
+                  title="Oprime para ver Ficha para Joyero"
+                  @click="openJoyeroDialog(pedido)"
+                >
                   <VImg
                     v-if="getImageUrl(pedido.imagen)"
                     :src="getImageUrl(pedido.imagen)!"
@@ -458,6 +607,12 @@ const getEstadoInfo = (estado: string) => {
                       color="primary"
                       style="opacity: 0.4;"
                     />
+                  </div>
+
+                  <!-- Overlay al pasar el mouse -->
+                  <div class="pedido-card__image-overlay">
+                    <VIcon icon="tabler-jewel" size="28" color="warning" />
+                    <span class="text-xs text-white font-weight-medium mt-1">Ver Ficha Joyero</span>
                   </div>
 
                   <!-- Badge de estado -->
@@ -579,12 +734,70 @@ const getEstadoInfo = (estado: string) => {
 
                   <VDivider class="mb-3" />
 
+                  <!-- Pago en cards: barra de progreso -->
+                  <div
+                    v-if="resumenesCache[pedido.id]"
+                    class="mb-3"
+                  >
+                    <div class="d-flex justify-space-between align-center mb-1">
+                      <VChip
+                        :color="estadoPagoMap[getEstadoPago(pedido.id) || '']?.color || 'secondary'"
+                        size="x-small"
+                        variant="tonal"
+                        :prepend-icon="estadoPagoMap[getEstadoPago(pedido.id) || '']?.icon"
+                      >
+                        {{ estadoPagoMap[getEstadoPago(pedido.id)!]?.label || 'Sin abonos' }}
+                      </VChip>
+                      <span class="text-xs text-disabled">
+                        {{ formatCurrency(resumenesCache[pedido.id].total_abonado) }} / {{ formatCurrency(pedido.total_pedido || 0) }}
+                      </span>
+                    </div>
+                    <VProgressLinear
+                      :model-value="pedido.total_pedido > 0 ? Math.min((resumenesCache[pedido.id].total_abonado / pedido.total_pedido) * 100, 100) : 0"
+                      :color="estadoPagoMap[getEstadoPago(pedido.id) || '']?.color || 'secondary'"
+                      rounded
+                      height="4"
+                    />
+                  </div>
+
                   <!-- Precios y acciones -->
                   <div class="d-flex align-center justify-space-between">
                     <span class="text-primary font-weight-bold">
                       {{ formatCurrency(pedido.total_pedido || 0) }}
                     </span>
                     <div>
+                      <IconBtn
+                        size="small"
+                        title="Factura"
+                        @click="openFacturaDialog(pedido)"
+                      >
+                        <VIcon
+                          icon="tabler-file-invoice"
+                          size="18"
+                          color="primary"
+                        />
+                      </IconBtn>
+                      <IconBtn
+                        size="small"
+                        title="Ficha Joyero"
+                        @click="openJoyeroDialog(pedido)"
+                      >
+                        <VIcon
+                          icon="tabler-jewel"
+                          size="18"
+                          color="warning"
+                        />
+                      </IconBtn>
+                      <IconBtn
+                        size="small"
+                        title="Pagos"
+                        @click="openAbonosDialog(pedido)"
+                      >
+                        <VIcon
+                          icon="tabler-cash"
+                          size="18"
+                        />
+                      </IconBtn>
                       <IconBtn
                         size="small"
                         :to="{ name: 'apps-pedidos-edit-id', params: { id: pedido.id } }"
@@ -646,6 +859,24 @@ const getEstadoInfo = (estado: string) => {
         />
       </div>
     </VCard>
+
+    <!-- 👉 Dialog de Abonos -->
+    <PedidoAbonosDialog
+      v-model="abonosDialogOpen"
+      :pedido="selectedPedido"
+    />
+
+    <!-- 👉 Dialog Ficha de Joyero -->
+    <FichaJoyeroDialog
+      v-model="joyeroDialogOpen"
+      :item="selectedJoyeroPedido ? { ...selectedJoyeroPedido, type: 'pedido' } : null"
+    />
+
+    <!-- 👉 Dialog Factura / Comprobante -->
+    <FacturaPedidoDialog
+      v-model="facturaDialogOpen"
+      :pedido="selectedFacturaPedido"
+    />
   </section>
 </template>
 
@@ -662,6 +893,10 @@ const getEstadoInfo = (estado: string) => {
   &__image-wrapper {
     position: relative;
     overflow: hidden;
+
+    &:hover .pedido-card__image-overlay {
+      opacity: 1;
+    }
   }
 
   &__image {
@@ -670,6 +905,20 @@ const getEstadoInfo = (estado: string) => {
 
   &:hover &__image {
     transform: scale(1.05);
+  }
+
+  &__image-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(2px);
+    z-index: 2;
   }
 
   &__placeholder {

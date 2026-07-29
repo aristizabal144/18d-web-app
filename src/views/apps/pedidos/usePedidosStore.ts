@@ -5,11 +5,28 @@ interface FetchPedidosParams {
   q?: string
   colorId?: number | null
   estado?: string | null
+  estadoPago?: string | null  // Filtro client-side por estado de pago
   options?: {
     page?: number
     itemsPerPage?: number
     sortBy?: { key: string; order: string }[]
   }
+}
+
+export interface Abono {
+  id: string
+  pedido_id: string
+  valor: number
+  tipo_pago: 'efectivo' | 'transferencia'
+  fecha: string
+  notas: string | null
+  created_at: string
+}
+
+export interface ResumenPagos {
+  total_pedido: number
+  total_abonado: number
+  saldo_pendiente: number
 }
 
 export interface Pedido {
@@ -310,6 +327,73 @@ export const usePedidosStore = defineStore('PedidosStore', {
       }
 
       return data || []
+    },
+
+    // =============================================
+    // 👉 ABONOS
+    // =============================================
+
+    // 👉 Fetch abonos de un pedido
+    async fetchAbonos(pedidoId: string) {
+      const { data, error } = await supabase
+        .from('abonos')
+        .select('*')
+        .eq('pedido_id', pedidoId)
+        .order('fecha', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching abonos:', error)
+        throw error
+      }
+
+      return data as Abono[]
+    },
+
+    // 👉 Agregar abono
+    async addAbono(pedidoId: string, valor: number, tipoPago: 'efectivo' | 'transferencia', fecha: string, notas?: string | null) {
+      const { data, error } = await supabase.rpc('add_abono', {
+        p_pedido_id: pedidoId,
+        p_valor: valor,
+        p_tipo_pago: tipoPago,
+        p_fecha: fecha,
+        p_notas: notas || null,
+      })
+
+      if (error) {
+        console.error('Error adding abono:', error)
+        throw error
+      }
+
+      return data as Abono
+    },
+
+    // 👉 Eliminar abono
+    async deleteAbono(abonoId: string) {
+      const { error } = await supabase
+        .from('abonos')
+        .delete()
+        .eq('id', abonoId)
+
+      if (error) {
+        console.error('Error deleting abono:', error)
+        throw error
+      }
+
+      return true
+    },
+
+    // 👉 Resumen financiero del pedido
+    async fetchResumenPagos(pedidoId: string) {
+      const { data, error } = await supabase.rpc('get_resumen_pagos', {
+        p_pedido_id: pedidoId,
+      })
+
+      if (error) {
+        console.error('Error fetching resumen pagos:', error)
+        throw error
+      }
+
+      return data as ResumenPagos
     },
 
     // 👉 Fetch colores de oro
