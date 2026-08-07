@@ -10,12 +10,12 @@ const pedidoStore = usePedidosStore()
 
 // 👉 State
 const searchQuery = ref('')
-const selectedColor = ref<number | null>(null)
+const selectedCliente = ref<string | null>(null)
 const selectedEstado = ref<string | null>(null)
 const selectedEstadoPago = ref<string | null>(null)
 const viewMode = ref<'table' | 'cards'>('table')
 
-const itemsPerPage = ref(10)
+const itemsPerPage = ref(50)
 const page = ref(1)
 const sortBy = ref()
 const orderBy = ref()
@@ -24,6 +24,7 @@ const totalPedidos = ref(0)
 const pedidos = ref<Pedido[]>([])
 const isLoading = ref(false)
 const colores = ref<{ id: number; nombre: string }[]>([])
+const clientes = ref<{ id: string; nombre: string; apellido: string }[]>([])
 
 // 👉 Abonos dialog
 const abonosDialogOpen = ref(false)
@@ -112,7 +113,7 @@ const fetchPedidos = async () => {
   try {
     const { pedidos: data, totalPedidos: total } = await pedidoStore.fetchPedidos({
       q: searchQuery.value,
-      colorId: selectedColor.value,
+      clienteId: selectedCliente.value,
       estado: selectedEstado.value,
       estadoPago: selectedEstadoPago.value,
       options: {
@@ -141,10 +142,15 @@ const fetchPedidos = async () => {
   }
 }
 
-// 👉 Fetch colores para filtro
-const loadColores = async () => {
+// 👉 Fetch lookups para filtros
+const loadLookups = async () => {
   try {
-    colores.value = await pedidoStore.fetchColores()
+    const [coloresData, clientesData] = await Promise.all([
+      pedidoStore.fetchColores(),
+      pedidoStore.fetchClientes(),
+    ])
+    colores.value = coloresData
+    clientes.value = clientesData
   }
   catch (error) {
     console.error(error)
@@ -152,14 +158,14 @@ const loadColores = async () => {
 }
 
 // Watchers para refetching
-watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedColor, selectedEstado, selectedEstadoPago], () => {
+watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedCliente, selectedEstado, selectedEstadoPago], () => {
   fetchPedidos()
 }, { deep: true })
 
 // Fetch inicial
 onMounted(() => {
   fetchPedidos()
-  loadColores()
+  loadLookups()
 })
 
 // 👉 Delete Pedido
@@ -195,10 +201,12 @@ watch(abonosDialogOpen, val => {
 })
 
 // 👉 Helpers
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return ''
   const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
+  const dateObj = dateString.includes('T') ? new Date(dateString) : new Date(`${dateString}T12:00:00`)
 
-  return new Date(dateString).toLocaleDateString('es-ES', options)
+  return dateObj.toLocaleDateString('es-ES', options)
 }
 
 const formatCurrency = (value: number) => {
@@ -272,12 +280,12 @@ const getEstadoInfo = (estado: string) => {
             />
           </div>
 
-          <!-- 👉 Filtro por color -->
-          <div style="inline-size: 10rem;">
-            <AppSelect
-              v-model="selectedColor"
-              :items="[{ value: null, title: 'Todos' }, ...colores.map(c => ({ value: c.id, title: c.nombre }))]"
-              placeholder="Color Oro"
+          <!-- 👉 Filtro por cliente -->
+          <div style="inline-size: 13rem;">
+            <AppAutocomplete
+              v-model="selectedCliente"
+              :items="[{ value: null, title: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, title: `${c.nombre} ${c.apellido}` }))]"
+              placeholder="Cliente"
               density="compact"
               clearable
             />
@@ -479,6 +487,18 @@ const getEstadoInfo = (estado: string) => {
                 class="me-1"
               />
               {{ formatDate(item.fecha_fin) }}
+            </span>
+            <span
+              v-if="item.estado === 'entregado' && item.fecha_entregado"
+              class="text-xs font-weight-medium text-success"
+              title="Fecha real de entrega"
+            >
+              <VIcon
+                icon="tabler-circle-check"
+                size="13"
+                class="me-1"
+              />
+              Entregado: {{ formatDate(item.fecha_entregado) }}
             </span>
           </div>
         </template>
@@ -730,6 +750,18 @@ const getEstadoInfo = (estado: string) => {
                       />
                       {{ formatDate(pedido.fecha_fin) }}
                     </span>
+                  </div>
+
+                  <div
+                    v-if="pedido.estado === 'entregado' && pedido.fecha_entregado"
+                    class="d-flex align-center justify-end text-xs text-success font-weight-medium mb-2"
+                  >
+                    <VIcon
+                      icon="tabler-circle-check"
+                      size="14"
+                      class="me-1"
+                    />
+                    Entregado: {{ formatDate(pedido.fecha_entregado) }}
                   </div>
 
                   <VDivider class="mb-3" />

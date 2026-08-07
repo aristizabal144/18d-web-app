@@ -20,6 +20,11 @@ export default [
     icon: { icon: 'tabler-shopping-cart' },
   },
   {
+    title: 'Cartera',
+    to: { name: 'apps-cartera' },
+    icon: { icon: 'tabler-report-money' },
+  },
+  {
     title: 'Gastos',
     to: { name: 'apps-gastos-list' },
     icon: { icon: 'tabler-wallet' },

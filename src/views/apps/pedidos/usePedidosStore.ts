@@ -4,6 +4,7 @@ import { supabase } from '@/utils/supabase'
 interface FetchPedidosParams {
   q?: string
   colorId?: number | null
+  clienteId?: string | null
   estado?: string | null
   estadoPago?: string | null  // Filtro client-side por estado de pago
   options?: {
@@ -34,6 +35,7 @@ export interface Pedido {
   referencia: string
   fecha_inicio: string
   fecha_fin: string
+  fecha_entregado?: string | null
   titulo: string
   descripcion: string | null
   talla: string | null
@@ -63,8 +65,8 @@ export const usePedidosStore = defineStore('PedidosStore', {
   actions: {
     // 👉 Fetch Pedidos con paginación, búsqueda y filtros
     async fetchPedidos(params: FetchPedidosParams) {
-      const { q = '', colorId = null, estado = null, options = {} } = params
-      const { page = 1, itemsPerPage = 10, sortBy = [] } = options
+      const { q = '', colorId = null, clienteId = null, estado = null, options = {} } = params
+      const { page = 1, itemsPerPage = 50, sortBy = [] } = options
 
       let query = supabase
         .from('pedidos')
@@ -83,6 +85,10 @@ export const usePedidosStore = defineStore('PedidosStore', {
       // Filtro por color
       if (colorId)
         query = query.eq('color_id', colorId)
+
+      // Filtro por cliente
+      if (clienteId)
+        query = query.eq('cliente_id', clienteId)
 
       // Filtro por estado
       if (estado)
@@ -161,10 +167,10 @@ export const usePedidosStore = defineStore('PedidosStore', {
         p_cliente_id: pedidoData.cliente_id,
         p_tiene_diseno: pedidoData.tiene_diseno || false,
         p_peso_final: pedidoData.peso_final || 0,
-        p_precio_gramo: pedidoData.precio_gramo || 0,
-        p_precio_adicionales: pedidoData.precio_adicionales || 0,
+        p_precio_gramo: Math.round(pedidoData.precio_gramo || 0),
+        p_precio_adicionales: Math.round(pedidoData.precio_adicionales || 0),
         p_descripcion_adicionales: pedidoData.descripcion_adicionales || null,
-        p_total_pedido: pedidoData.total_pedido || 0,
+        p_total_pedido: Math.round(pedidoData.total_pedido || 0),
         p_estado: pedidoData.estado || 'pendiente_fabricar',
         p_imagen: imagePath,
       })
@@ -215,12 +221,13 @@ export const usePedidosStore = defineStore('PedidosStore', {
         p_tiene_diseno: pedidoData.tiene_diseno || false,
         p_id_diseno: pedidoData.id_diseno || null,
         p_peso_final: pedidoData.peso_final || 0,
-        p_precio_gramo: pedidoData.precio_gramo || 0,
-        p_precio_adicionales: pedidoData.precio_adicionales || 0,
+        p_precio_gramo: Math.round(pedidoData.precio_gramo || 0),
+        p_precio_adicionales: Math.round(pedidoData.precio_adicionales || 0),
         p_descripcion_adicionales: pedidoData.descripcion_adicionales || null,
-        p_total_pedido: pedidoData.total_pedido || 0,
+        p_total_pedido: Math.round(pedidoData.total_pedido || 0),
         p_estado: pedidoData.estado || 'pendiente_fabricar',
         p_imagen: imagePath,
+        p_fecha_entregado: pedidoData.fecha_entregado || null,
       })
 
       if (error) {

@@ -330,9 +330,13 @@ const estadoPagoInfo = computed(() => {
                 <span class="info-box__sub">Fecha de Ingreso:</span>
                 <strong class="info-box__main">{{ formatDate(pedido.fecha_inicio) }}</strong>
               </div>
-              <div class="d-flex justify-space-between text-xs">
+              <div class="d-flex justify-space-between text-xs mb-1">
                 <span class="info-box__sub">Fecha Estimada Entrega:</span>
                 <strong class="info-box__highlight">{{ formatDate(pedido.fecha_fin) }}</strong>
+              </div>
+              <div v-if="pedido.estado === 'entregado' && pedido.fecha_entregado" class="d-flex justify-space-between text-xs">
+                <span class="info-box__sub">Fecha Real de Entrega:</span>
+                <strong style="color: #1b5e20;">{{ formatDate(pedido.fecha_entregado) }}</strong>
               </div>
             </div>
           </div>

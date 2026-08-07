@@ -103,7 +103,7 @@ const totalPedido = computed(() => {
   const pg = precioGramo.value || 0
   const pa = precioAdicionales.value || 0
 
-  return (pf * pg) + pa
+  return Math.round((pf * pg) + pa)
 })
 
 const formatCurrency = (value: number) => {

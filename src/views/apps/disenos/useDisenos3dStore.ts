@@ -4,6 +4,7 @@ import { supabase } from '@/utils/supabase'
 interface FetchDisenosParams {
   q?: string
   colorId?: number | null
+  clienteId?: string | null
   options?: {
     page?: number
     itemsPerPage?: number
@@ -38,8 +39,8 @@ export const useDisenos3dStore = defineStore('Disenos3dStore', {
   actions: {
     // 👉 Fetch Diseños con paginación, búsqueda y filtro de color
     async fetchDisenos(params: FetchDisenosParams) {
-      const { q = '', colorId = null, options = {} } = params
-      const { page = 1, itemsPerPage = 10, sortBy = [] } = options
+      const { q = '', colorId = null, clienteId = null, options = {} } = params
+      const { page = 1, itemsPerPage = 50, sortBy = [] } = options
 
       let query = supabase
         .from('disenos_3d')
@@ -57,6 +58,10 @@ export const useDisenos3dStore = defineStore('Disenos3dStore', {
       // Filtro por color
       if (colorId)
         query = query.eq('color_id', colorId)
+
+      // Filtro por cliente
+      if (clienteId)
+        query = query.eq('cliente_id', clienteId)
 
       // Sorting
       if (sortBy.length > 0) {

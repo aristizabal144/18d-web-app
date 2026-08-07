@@ -9,10 +9,10 @@ const router = useRouter()
 
 // 👉 State
 const searchQuery = ref('')
-const selectedColor = ref<number | null>(null)
+const selectedCliente = ref<string | null>(null)
 const viewMode = ref<'table' | 'cards'>('table')
 
-const itemsPerPage = ref(10)
+const itemsPerPage = ref(50)
 const page = ref(1)
 const sortBy = ref()
 const orderBy = ref()
@@ -21,6 +21,7 @@ const totalDisenos = ref(0)
 const disenos = ref<Diseno3d[]>([])
 const isLoading = ref(false)
 const colores = ref<{ id: number; nombre: string }[]>([])
+const clientes = ref<{ id: string; nombre: string; apellido: string }[]>([])
 
 // 👉 Ficha Joyero dialog
 const joyeroDialogOpen = ref(false)
@@ -57,7 +58,7 @@ const fetchDisenos = async () => {
   try {
     const { disenos: data, totalDisenos: total } = await disenoStore.fetchDisenos({
       q: searchQuery.value,
-      colorId: selectedColor.value,
+      clienteId: selectedCliente.value,
       options: {
         page: page.value,
         itemsPerPage: itemsPerPage.value,
@@ -76,10 +77,15 @@ const fetchDisenos = async () => {
   }
 }
 
-// 👉 Fetch colores para filtro
-const loadColores = async () => {
+// 👉 Fetch lookups para filtros
+const loadLookups = async () => {
   try {
-    colores.value = await disenoStore.fetchColores()
+    const [coloresData, clientesData] = await Promise.all([
+      disenoStore.fetchColores(),
+      disenoStore.fetchClientes(),
+    ])
+    colores.value = coloresData
+    clientes.value = clientesData
   }
   catch (error) {
     console.error(error)
@@ -87,14 +93,14 @@ const loadColores = async () => {
 }
 
 // Watchers para refetching
-watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedColor], () => {
+watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedCliente], () => {
   fetchDisenos()
 }, { deep: true })
 
 // Fetch inicial
 onMounted(() => {
   fetchDisenos()
-  loadColores()
+  loadLookups()
 })
 
 // 👉 Delete Diseño
@@ -111,10 +117,12 @@ const deleteDiseno = async (id: string) => {
 }
 
 // 👉 Helpers
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return ''
   const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
+  const dateObj = dateString.includes('T') ? new Date(dateString) : new Date(`${dateString}T12:00:00`)
 
-  return new Date(dateString).toLocaleDateString('es-ES', options)
+  return dateObj.toLocaleDateString('es-ES', options)
 }
 
 const formatCurrency = (value: number) => {
@@ -165,12 +173,12 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
         <VSpacer />
 
         <div class="d-flex align-center flex-wrap gap-4">
-          <!-- 👉 Filtro por color -->
-          <div style="inline-size: 10rem;">
-            <AppSelect
-              v-model="selectedColor"
-              :items="[{ value: null, title: 'Todos' }, ...colores.map(c => ({ value: c.id, title: c.nombre }))]"
-              placeholder="Color Oro"
+          <!-- 👉 Filtro por cliente -->
+          <div style="inline-size: 13rem;">
+            <AppAutocomplete
+              v-model="selectedCliente"
+              :items="[{ value: null, title: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, title: `${c.nombre} ${c.apellido}` }))]"
+              placeholder="Cliente"
               density="compact"
               clearable
             />

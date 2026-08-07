@@ -32,6 +32,7 @@ const precioGramo = ref<number>(0)
 const precioAdicionales = ref<number>(0)
 const descripcionAdicionales = ref('')
 const estado = ref('pendiente_fabricar')
+const fechaEntregado = ref<string | null>(null)
 
 // 👉 Image
 const imageFile = ref<File | null>(null)
@@ -80,6 +81,7 @@ const loadData = async () => {
     precioAdicionales.value = pedido.precio_adicionales || 0
     descripcionAdicionales.value = pedido.descripcion_adicionales || ''
     estado.value = pedido.estado
+    fechaEntregado.value = pedido.fecha_entregado || null
     currentImagePath.value = pedido.imagen
 
     // Cargar preview de imagen actual
@@ -97,6 +99,16 @@ const loadData = async () => {
 
 onMounted(() => {
   loadData()
+})
+
+// Auto-set/clear fechaEntregado when estado changes
+watch(estado, newEstado => {
+  if (newEstado === 'entregado' && !fechaEntregado.value) {
+    fechaEntregado.value = new Date().toISOString().substring(0, 10)
+  }
+  else if (newEstado === 'pendiente_fabricar') {
+    fechaEntregado.value = null
+  }
 })
 
 // 👉 Image handling
@@ -139,7 +151,7 @@ const totalPedido = computed(() => {
   const pg = precioGramo.value || 0
   const pa = precioAdicionales.value || 0
 
-  return (pf * pg) + pa
+  return Math.round((pf * pg) + pa)
 })
 
 const formatCurrency = (value: number) => {
@@ -183,6 +195,7 @@ const onSubmit = async () => {
         descripcion_adicionales: descripcionAdicionales.value || null,
         total_pedido: totalPedido.value,
         estado: estado.value,
+        fecha_entregado: fechaEntregado.value,
         imagen: currentImagePath.value,
       },
       imageFile.value,
@@ -755,6 +768,15 @@ onBeforeUnmount(() => {
                     { value: 'entregado', title: 'Entregado' },
                   ]"
                   label="Estado del Pedido"
+                />
+
+                <AppDateTimePicker
+                  v-if="estado === 'entregado'"
+                  v-model="fechaEntregado"
+                  label="Fecha de Entregado"
+                  placeholder="Seleccionar fecha"
+                  class="mt-4"
+                  :config="{ dateFormat: 'Y-m-d' }"
                 />
               </VCardText>
             </VCard>
