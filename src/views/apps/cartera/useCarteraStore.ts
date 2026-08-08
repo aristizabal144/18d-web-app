@@ -237,6 +237,45 @@ export const useCarteraStore = defineStore('CarteraStore', {
       })
     },
 
+    // Fetch pedidos adeudados con detalle completo para reporte de cliente
+    async fetchPedidosAdeudadosDetallados(clienteId: string) {
+      const { data: pedidos, error } = await supabase
+        .from('pedidos')
+        .select(`
+          *,
+          cliente:profiles!pedidos_cliente_id_fkey(id, nombre, apellido),
+          color_oro:colores_oro(id, nombre)
+        `)
+        .eq('estado', 'entregado')
+        .eq('cliente_id', clienteId)
+        .order('fecha_entregado', { ascending: false })
+
+      if (error) throw error
+      if (!pedidos || pedidos.length === 0) return []
+
+      const pedidoIds = pedidos.map(p => p.id)
+      const { data: abonos } = await supabase
+        .from('abonos')
+        .select('*')
+        .in('pedido_id', pedidoIds)
+        .order('fecha', { ascending: true })
+
+      const result = pedidos.map((p: any) => {
+        const abonosPedido = abonos?.filter(a => a.pedido_id === p.id) || []
+        const totalAbonado = abonosPedido.reduce((s, a) => s + (a.valor || 0), 0)
+        const saldoPendiente = (p.total_pedido || 0) - totalAbonado
+        return {
+          ...p,
+          abonos: abonosPedido,
+          total_abonado: totalAbonado,
+          saldo_pendiente: saldoPendiente,
+        }
+      })
+
+      // Retornar ÚNICAMENTE pedidos con saldo adeudado (> 0)
+      return result.filter(p => p.saldo_pendiente > 0)
+    },
+
     // Fetch clientes para filtro
     async fetchClientes() {
       const { data, error } = await supabase

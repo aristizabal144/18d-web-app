@@ -30,6 +30,7 @@ const detalleCliente = ref<CarteraPedido[]>([])
 const clienteSeleccionadoInfo = ref<CarteraCliente | null>(null)
 const detalleDialogOpen = ref(false)
 const snackbar = ref({ show: false, message: '', color: 'error' })
+const isGeneratingReport = ref<Record<string, boolean>>({})
 
 // ── Helpers ───────────────────────────────────
 const formatCurrency = (v: number) =>
@@ -142,6 +143,493 @@ const printReporte = () => {
   w.document.close()
 }
 
+// ── Reporte PDF por Cliente (Facturas Adeudadas) ──────────────
+const generarReporteClientePdf = async (cliente: CarteraCliente) => {
+  isGeneratingReport.value[cliente.cliente_id] = true
+  try {
+    const pedidosAdeudados = await carteraStore.fetchPedidosAdeudadosDetallados(cliente.cliente_id)
+
+    if (!pedidosAdeudados || pedidosAdeudados.length === 0) {
+      snackbar.value = {
+        show: true,
+        message: `El cliente ${cliente.nombre} ${cliente.apellido} no tiene facturas ni saldos adeudados pendientes.`,
+        color: 'success',
+      }
+      return
+    }
+
+    const totalFacturadoAdeudado = pedidosAdeudados.reduce((sum, p) => sum + (p.total_pedido || 0), 0)
+    const totalAbonadoAdeudado = pedidosAdeudados.reduce((sum, p) => sum + (p.total_abonado || 0), 0)
+    const totalSaldoAdeudado = pedidosAdeudados.reduce((sum, p) => sum + (p.saldo_pendiente || 0), 0)
+
+    const fechaEmisionActual = new Date().toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+
+    // ── Páginas 2+: Generar cada factura adeudada con el diseño exacto de FacturaPedidoDialog ──
+    const facturasPagesHtml = pedidosAdeudados.map(pedido => {
+      let estadoChip = { label: 'ABONADO (PENDIENTE SALDO)', color: '#01579b', bg: '#e1f5fe', border: '#0288d1' }
+      if (pedido.total_abonado === 0) {
+        estadoChip = { label: 'SIN ABONOS', color: '#c62828', bg: '#ffebee', border: '#d32f2f' }
+      }
+
+      const abonosRowsHtml = (pedido.abonos && pedido.abonos.length > 0)
+        ? pedido.abonos.map((a: any, i: number) => `
+            <tr>
+              <td class="text-center font-weight-bold" style="width: 40px;">${i + 1}</td>
+              <td class="text-left">${formatDate(a.fecha)}</td>
+              <td class="text-left text-capitalize">
+                <span class="font-weight-medium" style="color: ${a.tipo_pago === 'efectivo' ? '#1565c0' : '#7b1fa2'};">
+                  ${a.tipo_pago || 'efectivo'}
+                </span>
+              </td>
+              <td class="text-left text-xs">${a.notas || 'Abono a pedido'}</td>
+              <td class="text-right font-weight-bold font-mono" style="color: #1b5e20;">${formatCurrency(a.valor)}</td>
+            </tr>
+          `).join('')
+        : ''
+
+      return `
+        <div class="invoice-page">
+          <!-- Encabezado de la factura -->
+          <div class="d-flex justify-space-between align-start mb-6 invoice-header">
+            <div class="d-flex flex-column align-start">
+              <div class="brand-logo-text">18D JOYEROS</div>
+              <div class="company-details text-xs">
+                <strong class="company-name text-body-2 font-weight-bold d-block">18D JOYEROS S.A.S</strong>
+                <span>NIT: 901.482.930-1</span><br>
+                <span>Joyería Fina & Diseños Personalizados 18k</span><br>
+                <span>Medellín, Colombia</span><br>
+                <span>Contacto: +57 (300) 18D-JOYA | info@18djoyeros.com</span>
+              </div>
+            </div>
+
+            <div class="text-right invoice-meta">
+              <div class="invoice-title text-h5 font-weight-bold mb-1">
+                COMPROBANTE DE PEDIDO
+              </div>
+              <div class="invoice-number font-mono text-subtitle-1 font-weight-bold mb-1">
+                ${pedido.referencia}
+              </div>
+              <div class="text-xs invoice-subtext mb-2">
+                Fecha de Emisión: <strong>${fechaEmisionActual}</strong>
+              </div>
+              <div class="invoice-status-chip d-inline-block px-3 py-1 rounded text-xs font-weight-bold"
+                   style="color: ${estadoChip.color}; background-color: ${estadoChip.bg}; border: 1px solid ${estadoChip.border};">
+                ${estadoChip.label}
+              </div>
+            </div>
+          </div>
+
+          <hr class="invoice-divider mb-6" />
+
+          <!-- Datos del cliente y tiempos -->
+          <div class="invoice-info-grid mb-6">
+            <div class="info-box pa-4 rounded-lg">
+              <div class="info-box__title text-xs font-weight-bold text-uppercase mb-2">
+                👤 Datos del Cliente
+              </div>
+              <div class="text-sm font-weight-bold text-capitalize info-box__main">
+                ${cliente.nombre} ${cliente.apellido}
+              </div>
+              <div class="text-xs info-box__sub mt-1">
+                Cliente de Cartera — 18D Joyeros
+              </div>
+            </div>
+
+            <div class="info-box pa-4 rounded-lg">
+              <div class="info-box__title text-xs font-weight-bold text-uppercase mb-2">
+                📅 Tiempos del Trabajo
+              </div>
+              <div class="d-flex justify-space-between text-xs mb-1">
+                <span class="info-box__sub">Fecha de Ingreso:</span>
+                <strong class="info-box__main">${formatDate(pedido.fecha_inicio)}</strong>
+              </div>
+              <div class="d-flex justify-space-between text-xs mb-1">
+                <span class="info-box__sub">Fecha Estimada Entrega:</span>
+                <strong class="info-box__highlight">${formatDate(pedido.fecha_fin)}</strong>
+              </div>
+              <div class="d-flex justify-space-between text-xs">
+                <span class="info-box__sub">Fecha Real de Entrega:</span>
+                <strong style="color: #1b5e20;">${formatDate(pedido.fecha_entregado)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de Especificaciones del Pedido -->
+          <div class="table-section mb-6">
+            <div class="section-title text-xs font-weight-bold text-uppercase mb-2">
+              Detalle del Pedido & Especificaciones
+            </div>
+
+            <table class="invoice-table w-100">
+              <thead>
+                <tr>
+                  <th class="text-left">DESCRIPCIÓN DE LA JOYA</th>
+                  <th class="text-center">COLOR ORO</th>
+                  <th class="text-center">TALLA</th>
+                  <th class="text-center">PESO</th>
+                  <th class="text-center">VALOR GRAMO</th>
+                  <th class="text-right">VALOR TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="font-weight-bold text-body-2 item-title">
+                      ${pedido.titulo}
+                    </div>
+                    ${pedido.descripcion ? `<div class="text-xs item-desc mt-1">${pedido.descripcion}</div>` : ''}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge-gold-color font-weight-medium text-xs">
+                      ${pedido.color_oro?.nombre || 'Amarillo'}
+                    </span>
+                  </td>
+                  <td class="text-center font-weight-medium text-xs">
+                    ${pedido.talla || '-'}
+                  </td>
+                  <td class="text-center text-xs">
+                    ${pedido.peso_final ? `<strong>${pedido.peso_final} g</strong> (Final)` : pedido.peso ? `${pedido.peso} g` : '-'}
+                  </td>
+                  <td class="text-center text-xs font-mono">
+                    ${pedido.precio_gramo ? formatCurrency(pedido.precio_gramo) : '-'}
+                  </td>
+                  <td class="text-right font-weight-bold text-body-2 item-price">
+                    ${formatCurrency(pedido.total_pedido)}
+                  </td>
+                </tr>
+
+                ${pedido.peso_final > 0 && pedido.precio_gramo > 0 ? `
+                  <tr class="sub-row">
+                    <td colspan="5" class="text-right text-xs sub-row-label">
+                      Liquidación Peso Final (${pedido.peso_final}g × ${formatCurrency(pedido.precio_gramo)}/g):
+                    </td>
+                    <td class="text-right text-xs font-mono sub-row-val">
+                      ${formatCurrency(pedido.peso_final * pedido.precio_gramo)}
+                    </td>
+                  </tr>
+                ` : ''}
+
+                ${pedido.precio_adicionales > 0 ? `
+                  <tr class="sub-row">
+                    <td colspan="5" class="text-right text-xs sub-row-label">
+                      Adicionales / Trabajo especial (${pedido.descripcion_adicionales || 'Piedras y engaste'}):
+                    </td>
+                    <td class="text-right text-xs font-mono sub-row-val">
+                      ${formatCurrency(pedido.precio_adicionales)}
+                    </td>
+                  </tr>
+                ` : ''}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Historial de Abonos -->
+          <div class="table-section mb-6">
+            <div class="d-flex justify-space-between align-center mb-2">
+              <div class="section-title text-xs font-weight-bold text-uppercase">
+                Historial de Abonos & Pagos
+              </div>
+              <span class="text-xs font-weight-medium text-sub font-mono">
+                ${pedido.abonos ? pedido.abonos.length : 0} abono(s) registrado(s)
+              </span>
+            </div>
+
+            ${pedido.abonos && pedido.abonos.length > 0 ? `
+              <table class="invoice-table invoice-table--abonos w-100">
+                <thead>
+                  <tr>
+                    <th class="text-center" style="width: 40px;">#</th>
+                    <th class="text-left">FECHA ABONO</th>
+                    <th class="text-left">MEDIO DE PAGO</th>
+                    <th class="text-left">CONCEPTO / NOTAS</th>
+                    <th class="text-right">MONTO ABONADO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${abonosRowsHtml}
+                </tbody>
+              </table>
+            ` : `
+              <div class="no-abonos-box pa-4 rounded-lg text-center text-xs">
+                No se han registrado abonos previos para este pedido.
+              </div>
+            `}
+          </div>
+
+          <!-- Resumen de Totales y Firmas -->
+          <div class="d-flex justify-space-between align-start mt-6">
+            <div class="invoice-terms text-xs">
+              <strong>Condiciones de Cobro:</strong><br>
+              • Garantía de por vida en la autenticidad del oro 18k.<br>
+              • El saldo pendiente debe cancelarse al momento del retiro.<br>
+              • Documento expedido por 18D Joyeros S.A.S.
+            </div>
+
+            <div class="totals-summary-box pa-4 rounded-lg">
+              <div class="d-flex justify-space-between align-center mb-2 text-xs">
+                <span class="totals-label">Total Pedido:</span>
+                <strong class="totals-val font-mono">${formatCurrency(pedido.total_pedido)}</strong>
+              </div>
+              <div class="d-flex justify-space-between align-center mb-2 text-xs">
+                <span class="totals-label font-weight-bold" style="color: #1b5e20;">(-) Total Abonado:</span>
+                <strong class="totals-val font-mono font-weight-bold" style="color: #1b5e20;">-${formatCurrency(pedido.total_abonado)}</strong>
+              </div>
+              <hr class="my-2 totals-hr" />
+              <div class="d-flex justify-space-between align-center text-body-1 font-weight-bold">
+                <span class="totals-title" style="color: #c62828;">SALDO PENDIENTE:</span>
+                <span class="totals-val font-mono" style="color: #c62828; font-size: 1.1rem;">${formatCurrency(pedido.saldo_pendiente)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Firmas -->
+          <div class="signatures-row mt-8">
+            <div class="signature-block text-center">
+              <div class="signature-line"></div>
+              <div class="signature-label text-xs font-weight-bold mt-1">FIRMA CLIENTE</div>
+              <div class="signature-sub text-xs">${cliente.nombre} ${cliente.apellido}</div>
+            </div>
+            <div class="signature-block text-center">
+              <div class="signature-line"></div>
+              <div class="signature-label text-xs font-weight-bold mt-1">REPRESENTANTE 18D JOYEROS</div>
+              <div class="signature-sub text-xs">Control de Cartera & Ventas</div>
+            </div>
+          </div>
+        </div>
+        <div class="page-break"></div>
+      `
+    }).join('')
+
+    const printWindow = window.open('', '_blank', 'width=900,height=950')
+    if (!printWindow) return
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Estado de Cuenta & Facturas - ${cliente.nombre} ${cliente.apellido}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #111; padding: 24px; }
+          
+          .page-break { page-break-after: always; break-after: page; }
+          
+          /* ── PÁGINA 1: PORTADA EXCLUSIVA ── */
+          .cover-page {
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 3px double #8b6b15;
+            border-radius: 12px;
+            padding: 32px;
+            background: #fffcf7;
+          }
+          .cover-header { text-align: center; border-bottom: 2px solid #8b6b15; padding-bottom: 20px; margin-bottom: 24px; }
+          .cover-brand { font-size: 28px; font-weight: 900; color: #8b6b15; letter-spacing: 2px; }
+          .cover-subbrand { font-size: 13px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
+          .cover-title { font-size: 18px; font-weight: 800; color: #1e1b16; margin-top: 16px; letter-spacing: 0.5px; }
+
+          .cover-client-box { background: #ffffff; border: 1px solid #e0d4be; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+          .cover-client-label { font-size: 10px; text-transform: uppercase; color: #8b6b15; font-weight: 800; letter-spacing: 0.5px; }
+          .cover-client-name { font-size: 22px; font-weight: 800; color: #111; margin-top: 2px; }
+          .cover-meta { display: flex; justify-content: space-between; margin-top: 12px; font-size: 12px; color: #555; border-top: 1px dashed #eee; padding-top: 8px; }
+
+          .cover-stats-grid { display: flex; gap: 14px; margin-bottom: 28px; }
+          .cover-stat-card { flex: 1; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px; text-align: center; }
+          .cover-stat-card.main-debt { border: 2px solid #ef9a9a; background: #ffebee; }
+          .cover-stat-label { font-size: 10px; text-transform: uppercase; font-weight: 700; color: #666; }
+          .cover-stat-card.main-debt .cover-stat-label { color: #c62828; }
+          .cover-stat-val { font-size: 18px; font-weight: 800; margin-top: 4px; color: #111; }
+          .cover-stat-card.main-debt .cover-stat-val { color: #c62828; font-size: 22px; }
+
+          .cover-table-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #8b6b15; margin-bottom: 8px; letter-spacing: 0.5px; }
+          .cover-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+          .cover-table th { background: #1e1b16; color: #f5d77f; padding: 8px 12px; font-size: 11px; text-transform: uppercase; text-align: left; }
+          .cover-table td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 12px; }
+
+          .cover-footer { text-align: center; border-top: 1px solid #e0d4be; padding-top: 12px; font-size: 11px; color: #777; }
+
+          /* ── PÁGINAS 2+: FACTURAS COMPLEMENTARIAS ── */
+          .invoice-page { padding: 10px 0; }
+          .brand-logo-text { font-size: 22px; font-weight: 900; color: #8b6b15; letter-spacing: 1px; margin-bottom: 4px; }
+          .font-mono { font-family: 'Courier New', Courier, monospace; }
+          .d-flex { display: flex; }
+          .flex-column { flex-direction: column; }
+          .align-start { align-items: flex-start; }
+          .align-center { align-items: center; }
+          .justify-space-between { justify-content: space-between; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .text-left { text-align: left; }
+          .text-capitalize { text-transform: capitalize; }
+          .text-uppercase { text-transform: uppercase; }
+          .font-weight-bold { font-weight: 700; }
+          .font-weight-medium { font-weight: 500; }
+          .text-xs { font-size: 0.75rem; }
+          .text-sm { font-size: 0.875rem; }
+          .text-body-2 { font-size: 0.875rem; }
+          .text-body-1 { font-size: 1rem; }
+          .text-subtitle-1 { font-size: 1rem; }
+          .text-h5 { font-size: 1.35rem; }
+          .d-block { display: block; }
+          .d-inline-block { display: inline-block; }
+          .mb-1 { margin-bottom: 4px; }
+          .mb-2 { margin-bottom: 8px; }
+          .mb-6 { margin-bottom: 20px; }
+          .mt-1 { margin-top: 4px; }
+          .mt-6 { margin-top: 20px; }
+          .mt-8 { margin-top: 32px; }
+          .pa-4 { padding: 14px; }
+          .px-3 { padding-left: 12px; padding-right: 12px; }
+          .py-1 { padding-top: 4px; padding-bottom: 4px; }
+          .my-2 { margin-top: 8px; margin-bottom: 8px; }
+          .w-100 { width: 100%; }
+          .rounded { border-radius: 4px; }
+          .rounded-lg { border-radius: 8px; }
+          .company-name { color: #111; font-size: 0.875rem; }
+          .company-details, .company-details span { color: #444; }
+          .invoice-title { color: #8b6b15; }
+          .invoice-number { color: #111; }
+          .invoice-subtext { color: #555; }
+          .invoice-subtext strong { color: #111; }
+          hr.invoice-divider { border: 0; border-top: 2px solid #8b6b15; opacity: 0.9; }
+          .invoice-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+          .info-box { background: #fdfbf7; border: 1px solid #e5dac4; color: #111; }
+          .info-box__title { color: #8b6b15; }
+          .info-box__main { color: #111; }
+          .info-box__sub { color: #444; }
+          .info-box__highlight { color: #8b6b15; }
+          .section-title { color: #555; letter-spacing: 0.5px; }
+          .text-sub { color: #555; }
+          .item-title { color: #111; }
+          .item-desc { color: #444; }
+          .item-price { color: #111; }
+          .sub-row-label { color: #555; }
+          .sub-row-val { color: #222; }
+          table.invoice-table { border-collapse: collapse; width: 100%; }
+          .invoice-table th { background: #1e1b16; color: #f5d77f; padding: 8px 10px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; border-bottom: 2px solid #8b6b15; }
+          .invoice-table td { padding: 8px 10px; border-bottom: 1px solid #e0e0e0; color: #111; }
+          .invoice-table .sub-row td { background: #f8f8f8; padding: 6px 10px; }
+          .invoice-table--abonos th { background: #2b2b2b; color: #fff; border-bottom: 2px solid #666; }
+          .badge-gold-color { background: rgba(201,168,76,0.2); color: #8b6b15; border: 1px solid rgba(201,168,76,0.4); padding: 3px 8px; border-radius: 4px; }
+          .no-abonos-box { background: #f9f9f9; border: 1px dashed #ccc; color: #555; }
+          .totals-summary-box { width: 320px; background: #fdfbf7; border: 1px solid #d9ccaf; color: #111; }
+          .totals-label { color: #444; }
+          .totals-val { color: #111; }
+          .totals-title { color: #111; }
+          hr.totals-hr { border-color: #d9ccaf; }
+          .invoice-terms { color: #444; }
+          .invoice-terms strong { color: #111; }
+          .signature-block { width: 220px; }
+          .signature-line { border-bottom: 1px solid #222; height: 35px; }
+          .signature-label { color: #111; }
+          .signature-sub { color: #444; }
+          .signatures-row { display: flex; justify-content: space-around; margin-top: 28px; }
+
+          @media print {
+            body { padding: 0; margin: 0; }
+            @page { size: A4; margin: 12mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <!-- ── PÁGINA 1: PORTADA EXCLUSIVA ── -->
+        <div class="cover-page">
+          <div>
+            <div class="cover-header">
+              <div class="cover-brand">18D JOYEROS</div>
+              <div class="cover-subbrand">Joyería Fina & Diseños Personalizados 18k — Medellín, Colombia</div>
+              <div class="cover-title">ESTADO DE CUENTA & REPORTE DE CARTERA</div>
+            </div>
+
+            <div class="cover-client-box">
+              <div class="cover-client-label">ESTADO DE CUENTA DE CARTERA PARA</div>
+              <div class="cover-client-name">${cliente.nombre} ${cliente.apellido}</div>
+              <div class="cover-meta">
+                <span>Fecha de Emisión: <strong>${fechaEmisionActual}</strong></span>
+                <span>Facturas Pendientes: <strong>${pedidosAdeudados.length} pedido(s) adeudado(s)</strong></span>
+              </div>
+            </div>
+
+            <div class="cover-stats-grid">
+              <div class="cover-stat-card main-debt">
+                <div class="cover-stat-label">DEUDA TOTAL PENDIENTE</div>
+                <div class="cover-stat-val">${formatCurrency(totalSaldoAdeudado)}</div>
+              </div>
+              <div class="cover-stat-card">
+                <div class="cover-stat-label">TOTAL FACTURADO (ADEUDADOS)</div>
+                <div class="cover-stat-val" style="color: #8b6b15;">${formatCurrency(totalFacturadoAdeudado)}</div>
+              </div>
+              <div class="cover-stat-card">
+                <div class="cover-stat-label">TOTAL ABONADO A LA FECHA</div>
+                <div class="cover-stat-val" style="color: #2e7d32;">${formatCurrency(totalAbonadoAdeudado)}</div>
+              </div>
+            </div>
+
+            <div class="cover-table-title">RESUMEN DE FACTURAS ADEUDADAS</div>
+            <table class="cover-table">
+              <thead>
+                <tr>
+                  <th style="width: 30px;">#</th>
+                  <th>Ref. Pedido</th>
+                  <th>Descripción / Título</th>
+                  <th style="text-align: center;">Fecha Entrega</th>
+                  <th style="text-align: right;">Total Pedido</th>
+                  <th style="text-align: right;">Total Abonado</th>
+                  <th style="text-align: right;">Saldo Pendiente</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${pedidosAdeudados.map((p, idx) => `
+                  <tr>
+                    <td>${idx + 1}</td>
+                    <td style="font-weight: 700; color: #8b6b15;">${p.referencia}</td>
+                    <td>${p.titulo}</td>
+                    <td style="text-align: center;">${formatDate(p.fecha_entregado)}</td>
+                    <td style="text-align: right;">${formatCurrency(p.total_pedido)}</td>
+                    <td style="text-align: right; color: #1b5e20;">${formatCurrency(p.total_abonado)}</td>
+                    <td style="text-align: right; font-weight: bold; color: #c62828;">${formatCurrency(p.saldo_pendiente)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cover-footer">
+            18D Joyeros S.A.S — NIT: 901.482.930-1 — Documento Oficial de Control de Cartera
+          </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- ── PÁGINAS 2+: FACTURAS ADJUNTAS ── -->
+        ${facturasPagesHtml}
+
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        <\/script>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+  } catch (error: any) {
+    console.error('Error al generar reporte de cliente:', error)
+    snackbar.value = { show: true, message: error.message || 'Error al generar reporte', color: 'error' }
+  } finally {
+    isGeneratingReport.value[cliente.cliente_id] = false
+  }
+}
+
 watch([fechaInicio, fechaFin, selectedCliente], loadAll, { deep: true })
 
 onMounted(async () => {
@@ -159,10 +647,10 @@ onMounted(async () => {
       <div>
         <h4 class="text-h4 font-weight-bold d-flex align-center gap-2">
           <VIcon icon="tabler-report-money" color="primary" size="28" />
-          Cartera
+          Cartera & Cuentas por Cobrar
         </h4>
         <p class="text-body-1 text-disabled mb-0">
-          Pedidos entregados — seguimiento de cobros y saldos
+          Seguimiento de cobros, facturas adeudadas y saldos pendientes por cliente
         </p>
       </div>
       <VBtn color="secondary" variant="tonal" prepend-icon="tabler-printer" @click="printReporte">
@@ -374,15 +862,28 @@ onMounted(async () => {
                   </div>
                 </div>
               </div>
-              <VBtn
-                size="small"
-                variant="tonal"
-                color="primary"
-                prepend-icon="tabler-eye"
-                class="flex-shrink-0"
-              >
-                Ver detalle
-              </VBtn>
+              <div class="d-flex align-center gap-2 flex-shrink-0">
+                <VBtn
+                  size="small"
+                  variant="tonal"
+                  color="secondary"
+                  prepend-icon="tabler-file-download"
+                  :loading="isGeneratingReport[cliente.cliente_id]"
+                  @click.stop="generarReporteClientePdf(cliente)"
+                >
+                  Reporte PDF
+                </VBtn>
+
+                <VBtn
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  prepend-icon="tabler-eye"
+                  @click.stop="openDetalle(cliente)"
+                >
+                  Ver detalle
+                </VBtn>
+              </div>
             </div>
 
             <!-- ── Zona métricas: 4 columnas ── -->
@@ -479,9 +980,21 @@ onMounted(async () => {
             {{ clienteSeleccionadoInfo.nombre }} {{ clienteSeleccionadoInfo.apellido }}
           </VCardTitle>
           <template #append>
-            <VBtn icon variant="text" size="small" @click="detalleDialogOpen = false">
-              <VIcon icon="tabler-x" />
-            </VBtn>
+            <div class="d-flex align-center gap-2">
+              <VBtn
+                size="small"
+                variant="tonal"
+                color="secondary"
+                prepend-icon="tabler-file-download"
+                :loading="isGeneratingReport[clienteSeleccionadoInfo.cliente_id]"
+                @click="generarReporteClientePdf(clienteSeleccionadoInfo)"
+              >
+                Reporte PDF
+              </VBtn>
+              <VBtn icon variant="text" size="small" @click="detalleDialogOpen = false">
+                <VIcon icon="tabler-x" />
+              </VBtn>
+            </div>
           </template>
         </VCardItem>
         <VDivider />

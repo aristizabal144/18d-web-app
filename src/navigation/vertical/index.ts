@@ -29,4 +29,14 @@ export default [
     to: { name: 'apps-gastos-list' },
     icon: { icon: 'tabler-wallet' },
   },
+  {
+    title: 'Vales',
+    to: { name: 'apps-vales' },
+    icon: { icon: 'tabler-receipt-refund' },
+  },
+  {
+    title: 'Arreglos',
+    to: { name: 'apps-arreglos' },
+    icon: { icon: 'tabler-tools' },
+  },
 ]

@@ -153,6 +153,28 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
 
 <template>
   <section>
+    <!-- 👉 Encabezado de la Sección -->
+    <div class="d-flex align-center justify-space-between flex-wrap gap-4 mb-6">
+      <div>
+        <h4 class="text-h4 font-weight-bold d-flex align-center gap-2">
+          <VIcon icon="tabler-cube-3d-sphere" color="primary" size="28" />
+          Diseños 3D & Catálogo
+        </h4>
+        <p class="text-body-1 text-disabled mb-0">
+          Modelos y archivos 3D desarrollados para piezas de joyería
+        </p>
+      </div>
+
+      <VBtn
+        color="primary"
+        prepend-icon="tabler-plus"
+        class="font-weight-bold"
+        :to="{ name: 'apps-disenos-create' }"
+      >
+        Nuevo Diseño 3D
+      </VBtn>
+    </div>
+
     <VCard>
       <!-- 👉 Toolbar -->
       <VCardText class="d-flex flex-wrap py-4 gap-4">
@@ -214,14 +236,6 @@ const totalPages = computed(() => Math.ceil(totalDisenos.value / itemsPerPage.va
               <VIcon icon="tabler-layout-grid" />
             </VBtn>
           </VBtnToggle>
-
-          <!-- 👉 Botón Agregar -->
-          <VBtn
-            prepend-icon="tabler-plus"
-            :to="{ name: 'apps-disenos-create' }"
-          >
-            Nuevo Diseño
-          </VBtn>
         </div>
       </VCardText>
 

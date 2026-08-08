@@ -122,6 +122,28 @@ const formatDate = (dateString: string) => {
 
 <template>
   <section>
+    <!-- 👉 Encabezado de la Sección -->
+    <div class="d-flex align-center justify-space-between flex-wrap gap-4 mb-6">
+      <div>
+        <h4 class="text-h4 font-weight-bold d-flex align-center gap-2">
+          <VIcon icon="tabler-users" color="primary" size="28" />
+          Directorio de Clientes
+        </h4>
+        <p class="text-body-1 text-disabled mb-0">
+          Gestión de perfiles de clientes, datos de contacto e historial de registro
+        </p>
+      </div>
+
+      <VBtn
+        color="primary"
+        prepend-icon="tabler-plus"
+        class="font-weight-bold"
+        @click="isAddNewClientDrawerVisible = true"
+      >
+        Agregar Cliente
+      </VBtn>
+    </div>
+
     <VCard>
       <VCardText class="d-flex flex-wrap py-4 gap-4">
         <div class="me-3 d-flex gap-3">
@@ -148,14 +170,6 @@ const formatDate = (dateString: string) => {
               density="compact"
             />
           </div>
-
-          <!-- 👉 Add user button -->
-          <VBtn
-            prepend-icon="tabler-plus"
-            @click="isAddNewClientDrawerVisible = true"
-          >
-            Agregar Cliente
-          </VBtn>
         </div>
       </VCardText>
 

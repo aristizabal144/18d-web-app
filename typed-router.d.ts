@@ -20,6 +20,7 @@ declare module 'vue-router/auto-routes' {
   export interface RouteNamedMap {
     'root': RouteRecordInfo<'root', '/', Record<never, never>, Record<never, never>>,
     '$error': RouteRecordInfo<'$error', '/:error(.*)', { error: ParamValue<true> }, { error: ParamValue<false> }>,
+    'apps-arreglos': RouteRecordInfo<'apps-arreglos', '/apps/arreglos', Record<never, never>, Record<never, never>>,
     'apps-cartera': RouteRecordInfo<'apps-cartera', '/apps/cartera', Record<never, never>, Record<never, never>>,
     'apps-clients-list': RouteRecordInfo<'apps-clients-list', '/apps/clients/list', Record<never, never>, Record<never, never>>,
     'apps-disenos-create': RouteRecordInfo<'apps-disenos-create', '/apps/disenos/create', Record<never, never>, Record<never, never>>,
@@ -29,6 +30,7 @@ declare module 'vue-router/auto-routes' {
     'apps-pedidos-create': RouteRecordInfo<'apps-pedidos-create', '/apps/pedidos/create', Record<never, never>, Record<never, never>>,
     'apps-pedidos-edit-id': RouteRecordInfo<'apps-pedidos-edit-id', '/apps/pedidos/edit/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'apps-pedidos-list': RouteRecordInfo<'apps-pedidos-list', '/apps/pedidos/list', Record<never, never>, Record<never, never>>,
+    'apps-vales': RouteRecordInfo<'apps-vales', '/apps/vales', Record<never, never>, Record<never, never>>,
     'login': RouteRecordInfo<'login', '/login', Record<never, never>, Record<never, never>>,
     'second-page': RouteRecordInfo<'second-page', '/second-page', Record<never, never>, Record<never, never>>,
   }

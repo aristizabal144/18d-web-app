@@ -238,6 +238,28 @@ const getEstadoInfo = (estado: string) => {
 
 <template>
   <section>
+    <!-- 👉 Encabezado de la Sección -->
+    <div class="d-flex align-center justify-space-between flex-wrap gap-4 mb-6">
+      <div>
+        <h4 class="text-h4 font-weight-bold d-flex align-center gap-2">
+          <VIcon icon="tabler-shopping-cart" color="primary" size="28" />
+          Gestión de Pedidos
+        </h4>
+        <p class="text-body-1 text-disabled mb-0">
+          Administración de pedidos de joyería, abonos y estado de producción
+        </p>
+      </div>
+
+      <VBtn
+        color="primary"
+        prepend-icon="tabler-plus"
+        class="font-weight-bold"
+        :to="{ name: 'apps-pedidos-create' }"
+      >
+        Crear Pedido
+      </VBtn>
+    </div>
+
     <VCard>
       <!-- 👉 Toolbar -->
       <VCardText class="d-flex flex-wrap py-4 gap-4">
@@ -321,14 +343,6 @@ const getEstadoInfo = (estado: string) => {
               <VIcon icon="tabler-layout-grid" />
             </VBtn>
           </VBtnToggle>
-
-          <!-- 👉 Botón Agregar -->
-          <VBtn
-            prepend-icon="tabler-plus"
-            :to="{ name: 'apps-pedidos-create' }"
-          >
-            Nuevo Pedido
-          </VBtn>
         </div>
       </VCardText>
 
