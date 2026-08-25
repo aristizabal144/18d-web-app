@@ -69,7 +69,7 @@ const getEstadoPago = (pedidoId: string) => {
   if (res.saldo_pendiente === 0 && res.total_abonado > 0) return 'pagado'
   if (res.saldo_pendiente < 0) return 'anticipo'
   if (res.total_abonado > 0) return 'pendiente_pago'
-  return null // sin abonos
+  return 'sin_abonos'
 }
 
 // 👉 Color badge map
@@ -123,16 +123,36 @@ const fetchPedidos = async () => {
       },
     })
 
-    pedidos.value = data
-    totalPedidos.value = total
-
-    // Cargar resumenes de pago para todos los pedidos
-    const resumenes = await Promise.all(
-      data.map(p => pedidoStore.fetchResumenPagos(p.id).then(r => ({ id: p.id, r })))
-    )
-    resumenes.forEach(({ id, r }) => {
-      resumenesCache.value[id] = r
+    // Calcular resúmenes de pago sincrónicamente desde los abonos cargados en la misma consulta (0 peticiones HTTP extra)
+    const cache: Record<string, ResumenPagos> = {}
+    data.forEach(p => {
+      const total_abonado = Array.isArray(p.abonos) ? p.abonos.reduce((sum, a) => sum + (a.valor || 0), 0) : 0
+      const saldo_pendiente = (p.total_pedido || 0) - total_abonado
+      cache[p.id] = {
+        total_pedido: p.total_pedido || 0,
+        total_abonado,
+        saldo_pendiente,
+      }
     })
+    resumenesCache.value = cache
+
+    // Filtro client-side por estado de pago si se ha seleccionado
+    let finalPedidos = data
+    if (selectedEstadoPago.value) {
+      finalPedidos = data.filter(p => {
+        const res = cache[p.id]
+        if (!res) return true
+        let est = 'sin_abonos'
+        if (res.saldo_pendiente === 0 && res.total_abonado > 0) est = 'pagado'
+        else if (res.saldo_pendiente < 0) est = 'anticipo'
+        else if (res.total_abonado > 0) est = 'pendiente_pago'
+
+        return est === selectedEstadoPago.value
+      })
+    }
+
+    pedidos.value = finalPedidos
+    totalPedidos.value = selectedEstadoPago.value ? finalPedidos.length : total
   }
   catch (error) {
     console.error(error)
@@ -157,8 +177,18 @@ const loadLookups = async () => {
   }
 }
 
-// Watchers para refetching
-watch([page, itemsPerPage, sortBy, orderBy, searchQuery, selectedCliente, selectedEstado, selectedEstadoPago], () => {
+// Watcher con debounce para búsqueda
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, () => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => {
+    page.value = 1
+    fetchPedidos()
+  }, 300)
+})
+
+// Watcher para el resto de filtros y paginación
+watch([page, itemsPerPage, sortBy, orderBy, selectedCliente, selectedEstado, selectedEstadoPago], () => {
   fetchPedidos()
 }, { deep: true })
 

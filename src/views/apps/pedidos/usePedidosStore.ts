@@ -59,6 +59,7 @@ export interface Pedido {
   responsable?: { id: string; nombre: string; apellido: string }
   cliente?: { id: string; nombre: string; apellido: string }
   diseno?: { id: string; referencia: string; titulo: string } | null
+  abonos?: { valor: number }[]
 }
 
 export const usePedidosStore = defineStore('PedidosStore', {
@@ -75,7 +76,8 @@ export const usePedidosStore = defineStore('PedidosStore', {
           color_oro:colores_oro(id, nombre),
           responsable:profiles!pedidos_responsable_id_fkey(id, nombre, apellido),
           cliente:profiles!pedidos_cliente_id_fkey(id, nombre, apellido),
-          diseno:disenos_3d!pedidos_id_diseno_fkey(id, referencia, titulo)
+          diseno:disenos_3d!pedidos_id_diseno_fkey(id, referencia, titulo),
+          abonos(valor)
         `, { count: 'exact' })
 
       // Filtro por texto de búsqueda
@@ -134,7 +136,8 @@ export const usePedidosStore = defineStore('PedidosStore', {
           color_oro:colores_oro(id, nombre),
           responsable:profiles!pedidos_responsable_id_fkey(id, nombre, apellido),
           cliente:profiles!pedidos_cliente_id_fkey(id, nombre, apellido),
-          diseno:disenos_3d!pedidos_id_diseno_fkey(id, referencia, titulo)
+          diseno:disenos_3d!pedidos_id_diseno_fkey(id, referencia, titulo),
+          abonos(valor)
         `)
         .eq('id', id)
         .single()
