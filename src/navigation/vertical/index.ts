@@ -1,4 +1,10 @@
 export default [
+  // ──────────────────────────────────────────
+  // 🔨 TALLER FABRICACIÓN
+  // ──────────────────────────────────────────
+  {
+    heading: 'Taller Fabricación',
+  },
   {
     title: 'Métricas',
     to: { name: 'root' },
@@ -39,4 +45,22 @@ export default [
     to: { name: 'apps-arreglos' },
     icon: { icon: 'tabler-tools' },
   },
+
+  // ──────────────────────────────────────────
+  // 🖨️ IMPRESIONES 3D
+  // ──────────────────────────────────────────
+  {
+    heading: 'Impresiones 3D',
+  },
+  {
+    title: 'Facturación 3D',
+    to: { name: 'apps-impresiones3d-facturacion' },
+    icon: { icon: 'tabler-file-invoice' },
+  },
+  {
+    title: 'Informe Mensual',
+    to: { name: 'apps-impresiones3d-informe' },
+    icon: { icon: 'tabler-chart-area-line' },
+  },
 ]
+

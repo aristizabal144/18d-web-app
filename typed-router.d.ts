@@ -27,6 +27,8 @@ declare module 'vue-router/auto-routes' {
     'apps-disenos-edit-id': RouteRecordInfo<'apps-disenos-edit-id', '/apps/disenos/edit/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'apps-disenos-list': RouteRecordInfo<'apps-disenos-list', '/apps/disenos/list', Record<never, never>, Record<never, never>>,
     'apps-gastos-list': RouteRecordInfo<'apps-gastos-list', '/apps/gastos/list', Record<never, never>, Record<never, never>>,
+    'apps-impresiones3d-facturacion': RouteRecordInfo<'apps-impresiones3d-facturacion', '/apps/impresiones3d/facturacion', Record<never, never>, Record<never, never>>,
+    'apps-impresiones3d-informe': RouteRecordInfo<'apps-impresiones3d-informe', '/apps/impresiones3d/informe', Record<never, never>, Record<never, never>>,
     'apps-pedidos-create': RouteRecordInfo<'apps-pedidos-create', '/apps/pedidos/create', Record<never, never>, Record<never, never>>,
     'apps-pedidos-edit-id': RouteRecordInfo<'apps-pedidos-edit-id', '/apps/pedidos/edit/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'apps-pedidos-list': RouteRecordInfo<'apps-pedidos-list', '/apps/pedidos/list', Record<never, never>, Record<never, never>>,
