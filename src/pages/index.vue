@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/utils/supabase'
+import { useNegocioStore } from '@/views/apps/configuracion/useNegocioStore'
 
 // 👉 State - Client Mounted Flag
 const isMounted = ref(false)
@@ -49,24 +50,10 @@ interface PedidoEntregadoItem {
 const pedidosEntregadosSemana = ref<PedidoEntregadoItem[]>([])
 
 // 👉 Helpers de Formato
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value || 0)
-}
+const negocio = useNegocioStore()
+const { formatCurrency, formatNumber, formatDateNumeric: formatDate, formatDateWith, formatShortDate } = useFormato()
 
-const formatGrams = (value: number) => {
-  return `${Number(value || 0).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} gr`
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '-'
-  const [year, month, day] = dateStr.substring(0, 10).split('-')
-  return `${day}/${month}/${year}`
-}
+const formatGrams = (value: number) => `${formatNumber(value, 1)} gr`
 
 // Helper para obtener fecha de entrega de un pedido
 const getPedidoDeliveryDate = (p: any): string => {
@@ -74,35 +61,57 @@ const getPedidoDeliveryDate = (p: any): string => {
   return d ? d.substring(0, 10) : ''
 }
 
-// 👉 Rango de Fechas de la Semana Actual (Lunes a Domingo)
-const getWeekRange = () => {
-  const now = new Date()
-  const currentDay = now.getDay() // 0: Dom, 1: Lun, ...
+// 👉 Navegación entre semanas (0 = semana actual, -1 = anterior, ...)
+const semanaOffset = ref(0)
+const esSemanaActual = computed(() => semanaOffset.value === 0)
+
+// 'YYYY-MM-DD' en hora local; toISOString() pasaría a UTC y correría el día
+const toLocalDateStr = (date: Date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+
+  return `${y}-${m}-${d}`
+}
+
+// 👉 Rango de Fechas de la Semana Seleccionada (Lunes a Domingo)
+const getWeekRange = (offset = semanaOffset.value) => {
+  const reference = new Date()
+  reference.setDate(reference.getDate() + offset * 7)
+
+  const currentDay = reference.getDay() // 0: Dom, 1: Lun, ...
   const distanceToMon = currentDay === 0 ? -6 : 1 - currentDay
 
-  const monday = new Date(now)
-  monday.setDate(now.getDate() + distanceToMon)
+  const monday = new Date(reference)
+  monday.setDate(reference.getDate() + distanceToMon)
   monday.setHours(0, 0, 0, 0)
 
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
-  sunday.setHours(23, 59, 59, 999)
 
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  const startOfMonth = new Date(reference.getFullYear(), reference.getMonth(), 1)
+  const endOfMonth = new Date(reference.getFullYear(), reference.getMonth() + 1, 0)
 
   return { monday, sunday, startOfMonth, endOfMonth }
 }
+
+const etiquetaSemana = computed(() => {
+  const { monday, sunday } = getWeekRange()
+
+  return `${formatDateWith(monday, { day: 'numeric', month: 'short' })} – ${formatShortDate(sunday)}`
+})
+
+const nombreMes = computed(() => formatDateWith(getWeekRange().startOfMonth, { month: 'long' }))
 
 // 👉 Fetch Dashboard Data
 const fetchDashboardData = async () => {
   isLoading.value = true
   try {
     const { monday, sunday, startOfMonth, endOfMonth } = getWeekRange()
-    const monStr = monday.toISOString().substring(0, 10)
-    const sunStr = sunday.toISOString().substring(0, 10)
-    const monthStartStr = startOfMonth.toISOString().substring(0, 10)
-    const monthEndStr = endOfMonth.toISOString().substring(0, 10)
+    const monStr = toLocalDateStr(monday)
+    const sunStr = toLocalDateStr(sunday)
+    const monthStartStr = toLocalDateStr(startOfMonth)
+    const monthEndStr = toLocalDateStr(endOfMonth)
 
     // 1. Fetch Todos los Pedidos con joins completos
     const allPedidosRes = await supabase
@@ -158,7 +167,7 @@ const fetchDashboardData = async () => {
     const newWeeklyData = daysArr.map((d, index) => {
       const targetDate = new Date(monday)
       targetDate.setDate(monday.getDate() + index)
-      const targetStr = targetDate.toISOString().substring(0, 10)
+      const targetStr = toLocalDateStr(targetDate)
 
       // Fabricaciones entregadas este día exacto
       const entregadosDia = allPedidos.filter(p => {
@@ -173,7 +182,7 @@ const fetchDashboardData = async () => {
       const facturadoDia = entregadosDia.reduce((sum, p) => sum + Number(p.total_pedido || 0), 0)
 
       return {
-        day: d,
+        day: `${d} ${targetDate.getDate()}`,
         entregados: countEntregados,
         gramos: Math.round(gramosDia * 10) / 10,
         facturado: facturadoDia,
@@ -210,6 +219,15 @@ const fetchDashboardData = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+const cambiarSemana = (delta: number) => {
+  const nuevoOffset = delta === 0 ? 0 : Math.min(semanaOffset.value + delta, 0)
+  if (nuevoOffset === semanaOffset.value)
+    return
+
+  semanaOffset.value = nuevoOffset
+  fetchDashboardData()
 }
 
 onMounted(() => {
@@ -352,25 +370,70 @@ const getEstadoColor = (estado: string) => {
     <VCol cols="12">
       <VCard
         class="position-relative overflow-hidden"
-        style="background: linear-gradient(135deg, #181612 0%, #2A2518 100%); border-bottom: 3px solid #C9A84C;"
+        style="background: linear-gradient(135deg, #181612 0%, #2A2518 100%); border-bottom: 3px solid rgb(var(--v-theme-primary));"
       >
         <VCardText class="d-flex flex-sm-row flex-column justify-space-between align-center pa-6">
           <div>
             <div class="d-flex align-center gap-2 mb-2">
               <VChip size="small" color="primary" variant="flat" class="font-weight-bold">
-                18D JOYEROS
+                {{ negocio.nombreMayusculas }}
               </VChip>
               <span class="text-caption text-disabled">Panel de Control & Métricas Semanales</span>
             </div>
             <h3 class="text-h3 font-weight-bold text-white mb-2">
-              Métricas y Rendimiento del Negocio 💎
+              Informe Semanal 💎
             </h3>
             <p class="text-body-1 mb-0 text-medium-emphasis style-subtitle">
               Seguimiento en tiempo real de facturación diaria y gramos de oro entregados por día.
             </p>
           </div>
 
-          <div class="d-flex align-center gap-4 mt-4 mt-sm-0">
+          <div class="d-flex align-center flex-wrap justify-center gap-4 mt-4 mt-sm-0">
+            <!-- 👉 Selector de semana -->
+            <div class="d-flex align-center gap-1">
+              <VBtn
+                icon
+                variant="tonal"
+                color="primary"
+                size="small"
+                title="Semana anterior"
+                :disabled="isLoading"
+                @click="cambiarSemana(-1)"
+              >
+                <VIcon icon="tabler-chevron-left" />
+              </VBtn>
+              <div class="text-center px-2 semana-label">
+                <div class="text-caption text-uppercase text-disabled">
+                  {{ esSemanaActual ? 'Semana actual' : 'Semana' }}
+                </div>
+                <div class="text-body-1 font-weight-bold text-white text-no-wrap">
+                  {{ etiquetaSemana }}
+                </div>
+              </div>
+              <VBtn
+                icon
+                variant="tonal"
+                color="primary"
+                size="small"
+                title="Semana siguiente"
+                :disabled="isLoading || esSemanaActual"
+                @click="cambiarSemana(1)"
+              >
+                <VIcon icon="tabler-chevron-right" />
+              </VBtn>
+              <VBtn
+                v-if="!esSemanaActual"
+                variant="text"
+                color="primary"
+                size="small"
+                prepend-icon="tabler-calendar-event"
+                :disabled="isLoading"
+                @click="cambiarSemana(0)"
+              >
+                Hoy
+              </VBtn>
+            </div>
+
             <VBtn
               color="primary"
               prepend-icon="tabler-refresh"
@@ -406,7 +469,7 @@ const getEstadoColor = (estado: string) => {
               <span v-else>{{ formatCurrency(metrics.facturacionSemana) }}</span>
             </h4>
             <div class="d-flex align-center justify-space-between text-xs mt-2 pt-2 border-t">
-              <span class="text-disabled">Mes: <strong>{{ formatCurrency(metrics.facturacionMes) }}</strong></span>
+              <span class="text-disabled text-capitalize">{{ nombreMes }}: <strong>{{ formatCurrency(metrics.facturacionMes) }}</strong></span>
             </div>
           </VCardText>
         </VCard>
@@ -425,7 +488,7 @@ const getEstadoColor = (estado: string) => {
               <span v-else>{{ formatGrams(metrics.gramosEntregadosSemana) }}</span>
             </h4>
             <div class="d-flex align-center justify-space-between text-xs mt-2 pt-2 border-t">
-              <span class="text-disabled">Mes: <strong>{{ formatGrams(metrics.gramosEntregadosMes) }}</strong></span>
+              <span class="text-disabled text-capitalize">{{ nombreMes }}: <strong>{{ formatGrams(metrics.gramosEntregadosMes) }}</strong></span>
             </div>
           </VCardText>
         </VCard>
@@ -566,7 +629,7 @@ const getEstadoColor = (estado: string) => {
                 <VIcon icon="tabler-package-check" color="success" size="24" />
                 Pedidos Entregados en la Semana
               </VCardTitle>
-              <VCardSubtitle>Listado de joyas y productos entregados durante esta semana</VCardSubtitle>
+              <VCardSubtitle>Listado de joyas y productos entregados del {{ etiquetaSemana }}</VCardSubtitle>
             </div>
             <VBtn
               size="small"
@@ -638,7 +701,7 @@ const getEstadoColor = (estado: string) => {
             <tr v-if="pedidosEntregadosSemana.length === 0">
               <td colspan="7" class="text-center py-6 text-disabled">
                 <VIcon icon="tabler-package-off" size="32" class="mb-1 text-disabled d-block mx-auto" />
-                No se han registrado entregas en lo que va de esta semana.
+                {{ esSemanaActual ? 'No se han registrado entregas en lo que va de esta semana.' : 'No se registraron entregas en esta semana.' }}
               </td>
             </tr>
           </tbody>
@@ -764,7 +827,11 @@ const getEstadoColor = (estado: string) => {
 
 .kpi-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(201, 168, 76, 0.4) !important;
+  border-color: rgba(var(--v-theme-primary), 0.4) !important;
+}
+
+.semana-label {
+  min-inline-size: 170px;
 }
 
 .style-subtitle {
@@ -773,15 +840,15 @@ const getEstadoColor = (estado: string) => {
 
 :deep(.apexcharts-tooltip) {
   background: #1e1b16 !important;
-  border: 1px solid rgba(201, 168, 76, 0.4) !important;
+  border: 1px solid rgba(var(--v-theme-primary), 0.4) !important;
   color: #ffffff !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(8px);
 }
 :deep(.apexcharts-tooltip-title) {
   background: #2a2518 !important;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.3) !important;
-  color: #c9a84c !important;
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.3) !important;
+  color: rgb(var(--v-theme-primary)) !important;
   font-weight: bold !important;
 }
 :deep(.apexcharts-tooltip-text-y-value),
@@ -791,7 +858,7 @@ const getEstadoColor = (estado: string) => {
 }
 :deep(.apexcharts-xaxistooltip) {
   background: #1e1b16 !important;
-  border: 1px solid rgba(201, 168, 76, 0.4) !important;
+  border: 1px solid rgba(var(--v-theme-primary), 0.4) !important;
   color: #ffffff !important;
 }
 </style>

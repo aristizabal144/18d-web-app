@@ -11,6 +11,9 @@ const { global } = useTheme()
 initCore()
 initConfigStore()
 
+// ℹ️ Identidad del negocio (color, nombre, título); carga en segundo plano sin bloquear el render
+useMarcaNegocio()
+
 const configStore = useConfigStore()
 </script>
 

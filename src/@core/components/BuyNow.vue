@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 const vm = getCurrentInstance()
 
-const buyNowUrl = ref(vm?.appContext.config.globalProperties.buyNowUrl || 'https://github.com/aristizabal144/18d-web-app')
+const buyNowUrl = ref(vm?.appContext.config.globalProperties.buyNowUrl || 'https://themeforest.net/licenses/standard')
 
 watch(buyNowUrl, val => {
   if (vm)

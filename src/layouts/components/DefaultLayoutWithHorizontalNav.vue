@@ -10,6 +10,9 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavBarI18n from '@core/components/I18n.vue'
 import { HorizontalNavLayout } from '@layouts'
 import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
+import { useNegocioStore } from '@/views/apps/configuracion/useNegocioStore'
+
+const negocio = useNegocioStore()
 </script>
 
 <template>
@@ -23,7 +26,7 @@ import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
         <VNodeRenderer :nodes="themeConfig.app.logo" />
 
         <h1 class="app-title font-weight-bold leading-normal text-xl text-capitalize">
-          {{ themeConfig.app.title }}
+          {{ negocio.nombreMayusculas }}
         </h1>
       </RouterLink>
       <VSpacer />

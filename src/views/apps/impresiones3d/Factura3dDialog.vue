@@ -54,14 +54,7 @@ const formValid = computed(() => {
 
 // ─── Métodos ────────────────────────────────────────────────────────────────
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const { formatCurrency } = useFormato()
 
 const getItemSubtotal = (item: { precio: number; peso: number }) => {
   return Number(item.precio || 0) * Number(item.peso || 0)

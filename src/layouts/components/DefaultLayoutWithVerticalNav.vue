@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import navItems from '@/navigation/vertical'
+import { filtrarNavegacionPorRol } from '@/navigation/filtrarNavegacion'
 import { themeConfig } from '@themeConfig'
 
 // Components
@@ -10,10 +11,15 @@ import NavBarI18n from '@core/components/I18n.vue'
 
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
+
+const router = useRouter()
+const { esAdmin } = usePermisos()
+
+const navItemsVisibles = computed(() => filtrarNavegacionPorRol(navItems, router, esAdmin.value))
 </script>
 
 <template>
-  <VerticalNavLayout :nav-items="navItems">
+  <VerticalNavLayout :nav-items="navItemsVisibles">
     <!-- 👉 navbar -->
     <template #navbar="{ toggleVerticalOverlayNavActive }">
       <div class="d-flex h-100 align-center">

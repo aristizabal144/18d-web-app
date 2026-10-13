@@ -6,9 +6,14 @@ export default [
     heading: 'Taller Fabricación',
   },
   {
-    title: 'Métricas',
+    title: 'Informe Semanal',
     to: { name: 'root' },
     icon: { icon: 'tabler-chart-bar' },
+  },
+  {
+    title: 'Informe Mensual',
+    to: { name: 'apps-informe-mensual' },
+    icon: { icon: 'tabler-calendar-stats' },
   },
   {
     title: 'Clientes',
@@ -61,6 +66,18 @@ export default [
     title: 'Informe Mensual',
     to: { name: 'apps-impresiones3d-informe' },
     icon: { icon: 'tabler-chart-area-line' },
+  },
+
+  // ──────────────────────────────────────────
+  // ⚙️ SISTEMA (solo admin: se oculta según meta.requiereAdmin de la ruta)
+  // ──────────────────────────────────────────
+  {
+    heading: 'Sistema',
+  },
+  {
+    title: 'Configuración',
+    to: { name: 'apps-configuracion' },
+    icon: { icon: 'tabler-settings' },
   },
 ]
 

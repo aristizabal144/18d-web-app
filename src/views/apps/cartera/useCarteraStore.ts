@@ -1,16 +1,37 @@
 import { defineStore } from 'pinia'
 import { supabase } from '@/utils/supabase'
 
+export type CarteraEstado = 'todos' | 'con_saldo' | 'al_dia'
+
+export type CarteraOrden = 'cliente' | 'pedidos_count' | 'total_pedidos' | 'total_abonado' | 'saldo_pendiente' | 'porcentaje_cobrado'
+
+export interface CarteraFiltros {
+  fechaInicio?: string | null
+  fechaFin?: string | null
+  clienteId?: string | null
+  busqueda?: string | null
+}
+
+export interface CarteraPaginacion {
+  estado: CarteraEstado
+  orden: CarteraOrden
+  desc: boolean
+  page: number
+  itemsPerPage: number
+}
+
 export interface CarteraCliente {
   cliente_id: string
   nombre: string
   apellido: string
-  total_pedidos: number        // Suma total de los pedidos entregados
-  total_abonado: number        // Suma de todos los abonos
-  total_efectivo: number       // Abonos en efectivo
-  total_transferencia: number  // Abonos en transferencia
-  saldo_pendiente: number      // Lo que aún debe
-  pedidos_count: number        // Cantidad de pedidos entregados con saldo
+  total_pedidos: number // Suma total de los pedidos entregados
+  total_abonado: number // Suma de todos los abonos
+  total_efectivo: number // Abonos en efectivo
+  total_transferencia: number // Abonos en transferencia
+  saldo_pendiente: number // Lo que aún debe
+  pedidos_count: number // Cantidad de pedidos entregados
+  pedidos_con_saldo: number // Pedidos entregados que aún tienen saldo
+  porcentaje_cobrado: number // 0-100
 }
 
 export interface CarteraPedido {
@@ -23,269 +44,189 @@ export interface CarteraPedido {
   total_efectivo: number
   total_transferencia: number
   saldo_pendiente: number
-  cliente_nombre: string
-  cliente_apellido: string
-  cliente_id: string
 }
 
 export interface CarteraStats {
   total_facturado: number
   total_recaudado: number
-  total_efectivo_mes: number
-  total_transferencia_mes: number
+  total_efectivo: number
+  total_transferencia: number
   total_pendiente: number
+  total_pedidos: number
+  pedidos_con_saldo: number
+  total_clientes: number
   clientes_con_saldo: number
+  clientes_al_dia: number
 }
+
+export const CARTERA_STATS_VACIAS: CarteraStats = {
+  total_facturado: 0,
+  total_recaudado: 0,
+  total_efectivo: 0,
+  total_transferencia: 0,
+  total_pendiente: 0,
+  total_pedidos: 0,
+  pedidos_con_saldo: 0,
+  total_clientes: 0,
+  clientes_con_saldo: 0,
+  clientes_al_dia: 0,
+}
+
+// PostgREST limita las respuestas a 1000 filas por petición
+const LOTE_MAXIMO = 1000
+
+const paramsFiltros = (f: CarteraFiltros) => ({
+  p_desde: f.fechaInicio || null,
+  p_hasta: f.fechaFin || null,
+  p_cliente_id: f.clienteId || null,
+  p_busqueda: f.busqueda?.trim() || null,
+})
+
+const aCliente = (row: any): CarteraCliente => ({
+  cliente_id: row.cliente_id,
+  nombre: row.nombre || '',
+  apellido: row.apellido || '',
+  total_pedidos: Number(row.total_pedidos) || 0,
+  total_abonado: Number(row.total_abonado) || 0,
+  total_efectivo: Number(row.total_efectivo) || 0,
+  total_transferencia: Number(row.total_transferencia) || 0,
+  saldo_pendiente: Number(row.saldo_pendiente) || 0,
+  pedidos_count: Number(row.pedidos_count) || 0,
+  pedidos_con_saldo: Number(row.pedidos_con_saldo) || 0,
+  porcentaje_cobrado: Number(row.porcentaje_cobrado) || 0,
+})
 
 export const useCarteraStore = defineStore('CarteraStore', {
   actions: {
-    // Obtener resumen global de cartera (pedidos entregados)
-    async fetchCarteraStats(fechaInicio?: string | null, fechaFin?: string | null): Promise<CarteraStats> {
-      // 1. Pedidos entregados en el rango
-      let pedidosQuery = supabase
-        .from('pedidos')
-        .select('id, total_pedido')
-        .eq('estado', 'entregado')
+    // Resumen global de cartera (pedidos entregados) calculado en el servidor
+    async fetchCarteraStats(filtros: CarteraFiltros): Promise<CarteraStats> {
+      const { data, error } = await supabase.rpc('get_cartera_resumen', paramsFiltros(filtros))
+      if (error)
+        throw error
 
-      if (fechaInicio)
-        pedidosQuery = pedidosQuery.gte('fecha_entregado', fechaInicio)
-      if (fechaFin)
-        pedidosQuery = pedidosQuery.lte('fecha_entregado', fechaFin)
+      const stats = { ...CARTERA_STATS_VACIAS }
+      for (const key of Object.keys(stats) as (keyof CarteraStats)[])
+        stats[key] = Number((data as any)?.[key]) || 0
 
-      const { data: pedidos, error: pedErr } = await pedidosQuery
-      if (pedErr) throw pedErr
+      return stats
+    },
 
-      const pedidoIds = pedidos?.map(p => p.id) || []
-      const totalFacturado = pedidos?.reduce((s, p) => s + (p.total_pedido || 0), 0) || 0
-
-      if (pedidoIds.length === 0) {
-        return {
-          total_facturado: totalFacturado,
-          total_recaudado: 0,
-          total_efectivo_mes: 0,
-          total_transferencia_mes: 0,
-          total_pendiente: 0,
-          clientes_con_saldo: 0,
-        }
-      }
-
-      // 2. Abonos de esos pedidos
-      const { data: abonos, error: abonosErr } = await supabase
-        .from('abonos')
-        .select('pedido_id, valor, tipo_pago')
-        .in('pedido_id', pedidoIds)
-
-      if (abonosErr) throw abonosErr
-
-      const totalRecaudado = abonos?.reduce((s, a) => s + (a.valor || 0), 0) || 0
-      const totalEfectivo = abonos?.filter(a => a.tipo_pago === 'efectivo').reduce((s, a) => s + a.valor, 0) || 0
-      const totalTransferencia = abonos?.filter(a => a.tipo_pago === 'transferencia').reduce((s, a) => s + a.valor, 0) || 0
-
-      // 3. Clientes con saldo pendiente
-      const saldosPorPedido = new Map<string, number>()
-      pedidos?.forEach(p => {
-        const abonado = abonos?.filter(a => a.pedido_id === p.id).reduce((s, a) => s + a.valor, 0) || 0
-        saldosPorPedido.set(p.id, (p.total_pedido || 0) - abonado)
+    // Una página de la cartera agrupada por cliente
+    async fetchCarteraByCliente(
+      filtros: CarteraFiltros,
+      pag: CarteraPaginacion,
+    ): Promise<{ items: CarteraCliente[]; total: number }> {
+      const { data, error } = await supabase.rpc('get_cartera_clientes', {
+        ...paramsFiltros(filtros),
+        p_estado: pag.estado,
+        p_orden: pag.orden,
+        p_desc: pag.desc,
+        p_limit: pag.itemsPerPage,
+        p_offset: (pag.page - 1) * pag.itemsPerPage,
       })
 
-      // Contar pedidos con saldo > 0 y obtener clientes únicos
-      const { data: pedidosConCliente } = await supabase
-        .from('pedidos')
-        .select('id, cliente_id')
-        .in('id', pedidoIds)
+      if (error)
+        throw error
 
-      const clientesConSaldo = new Set<string>()
-      pedidosConCliente?.forEach(p => {
-        if ((saldosPorPedido.get(p.id) || 0) > 0)
-          clientesConSaldo.add(p.cliente_id)
-      })
+      const rows = (data || []) as any[]
 
       return {
-        total_facturado: totalFacturado,
-        total_recaudado: totalRecaudado,
-        total_efectivo_mes: totalEfectivo,
-        total_transferencia_mes: totalTransferencia,
-        total_pendiente: totalFacturado - totalRecaudado,
-        clientes_con_saldo: clientesConSaldo.size,
+        items: rows.map(aCliente),
+        total: rows.length ? Number(rows[0].total_count) : 0,
       }
     },
 
-    // Obtener cartera agrupada por cliente
-    async fetchCarteraByCliente(
-      fechaInicio?: string | null,
-      fechaFin?: string | null,
-      clienteId?: string | null,
+    // Toda la cartera filtrada (para imprimir), descargada por lotes
+    async fetchCarteraCompleta(
+      filtros: CarteraFiltros,
+      orden: Omit<CarteraPaginacion, 'page' | 'itemsPerPage'>,
     ): Promise<CarteraCliente[]> {
-      let pedidosQuery = supabase
-        .from('pedidos')
-        .select(`
-          id,
-          total_pedido,
-          cliente_id,
-          cliente:profiles!pedidos_cliente_id_fkey(id, nombre, apellido)
-        `)
-        .eq('estado', 'entregado')
+      const resultado: CarteraCliente[] = []
+      let page = 1
+      let total = Number.POSITIVE_INFINITY
 
-      if (fechaInicio)
-        pedidosQuery = pedidosQuery.gte('fecha_entregado', fechaInicio)
-      if (fechaFin)
-        pedidosQuery = pedidosQuery.lte('fecha_entregado', fechaFin)
-      if (clienteId)
-        pedidosQuery = pedidosQuery.eq('cliente_id', clienteId)
+      while (resultado.length < total) {
+        const lote = await this.fetchCarteraByCliente(filtros, { ...orden, page, itemsPerPage: LOTE_MAXIMO })
 
-      const { data: pedidos, error: pedErr } = await pedidosQuery
-      if (pedErr) throw pedErr
-      if (!pedidos || pedidos.length === 0) return []
+        total = lote.total
+        resultado.push(...lote.items)
+        if (lote.items.length < LOTE_MAXIMO)
+          break
+        page++
+      }
 
-      const pedidoIds = pedidos.map(p => p.id)
-
-      const { data: abonos, error: abonosErr } = await supabase
-        .from('abonos')
-        .select('pedido_id, valor, tipo_pago')
-        .in('pedido_id', pedidoIds)
-
-      if (abonosErr) throw abonosErr
-
-      // Agrupar por cliente
-      const clienteMap = new Map<string, CarteraCliente>()
-      pedidos.forEach((p: any) => {
-        const cid = p.cliente_id
-        const cliente = p.cliente as { id: string; nombre: string; apellido: string }
-
-        const abonosPedido = abonos?.filter(a => a.pedido_id === p.id) || []
-        const totalAbonado = abonosPedido.reduce((s, a) => s + a.valor, 0)
-        const totalEfectivo = abonosPedido.filter(a => a.tipo_pago === 'efectivo').reduce((s, a) => s + a.valor, 0)
-        const totalTransferencia = abonosPedido.filter(a => a.tipo_pago === 'transferencia').reduce((s, a) => s + a.valor, 0)
-        const saldo = (p.total_pedido || 0) - totalAbonado
-
-        if (!clienteMap.has(cid)) {
-          clienteMap.set(cid, {
-            cliente_id: cid,
-            nombre: cliente?.nombre || '',
-            apellido: cliente?.apellido || '',
-            total_pedidos: 0,
-            total_abonado: 0,
-            total_efectivo: 0,
-            total_transferencia: 0,
-            saldo_pendiente: 0,
-            pedidos_count: 0,
-          })
-        }
-
-        const entry = clienteMap.get(cid)!
-        entry.total_pedidos += p.total_pedido || 0
-        entry.total_abonado += totalAbonado
-        entry.total_efectivo += totalEfectivo
-        entry.total_transferencia += totalTransferencia
-        entry.saldo_pendiente += saldo
-        entry.pedidos_count += 1
-      })
-
-      return Array.from(clienteMap.values()).sort((a, b) => b.saldo_pendiente - a.saldo_pendiente)
+      return resultado
     },
 
     // Detalle de pedidos por cliente
-    async fetchPedidosByCliente(
-      clienteId: string,
-      fechaInicio?: string | null,
-      fechaFin?: string | null,
-    ): Promise<CarteraPedido[]> {
-      let query = supabase
-        .from('pedidos')
-        .select(`
-          id, referencia, titulo, fecha_entregado, total_pedido, cliente_id,
-          cliente:profiles!pedidos_cliente_id_fkey(nombre, apellido)
-        `)
-        .eq('estado', 'entregado')
-        .eq('cliente_id', clienteId)
-        .order('fecha_entregado', { ascending: false })
-
-      if (fechaInicio)
-        query = query.gte('fecha_entregado', fechaInicio)
-      if (fechaFin)
-        query = query.lte('fecha_entregado', fechaFin)
-
-      const { data: pedidos, error } = await query
-      if (error) throw error
-      if (!pedidos || pedidos.length === 0) return []
-
-      const pedidoIds = pedidos.map(p => p.id)
-      const { data: abonos } = await supabase
-        .from('abonos')
-        .select('pedido_id, valor, tipo_pago')
-        .in('pedido_id', pedidoIds)
-
-      return pedidos.map((p: any) => {
-        const abonosPedido = abonos?.filter(a => a.pedido_id === p.id) || []
-        const totalAbonado = abonosPedido.reduce((s, a) => s + a.valor, 0)
-        const totalEfectivo = abonosPedido.filter(a => a.tipo_pago === 'efectivo').reduce((s, a) => s + a.valor, 0)
-        const totalTransferencia = abonosPedido.filter(a => a.tipo_pago === 'transferencia').reduce((s, a) => s + a.valor, 0)
-        return {
-          id: p.id,
-          referencia: p.referencia,
-          titulo: p.titulo,
-          fecha_entregado: p.fecha_entregado,
-          total_pedido: p.total_pedido || 0,
-          total_abonado: totalAbonado,
-          total_efectivo: totalEfectivo,
-          total_transferencia: totalTransferencia,
-          saldo_pendiente: (p.total_pedido || 0) - totalAbonado,
-          cliente_id: p.cliente_id,
-          cliente_nombre: p.cliente?.nombre || '',
-          cliente_apellido: p.cliente?.apellido || '',
-        }
+    async fetchPedidosByCliente(clienteId: string, filtros: CarteraFiltros): Promise<CarteraPedido[]> {
+      const { data, error } = await supabase.rpc('get_cartera_pedidos_cliente', {
+        p_cliente_id: clienteId,
+        p_desde: filtros.fechaInicio || null,
+        p_hasta: filtros.fechaFin || null,
       })
+
+      if (error)
+        throw error
+
+      return ((data || []) as any[]).map(p => ({
+        id: p.id,
+        referencia: p.referencia,
+        titulo: p.titulo,
+        fecha_entregado: p.fecha_entregado,
+        total_pedido: Number(p.total_pedido) || 0,
+        total_abonado: Number(p.total_abonado) || 0,
+        total_efectivo: Number(p.total_efectivo) || 0,
+        total_transferencia: Number(p.total_transferencia) || 0,
+        saldo_pendiente: Number(p.saldo_pendiente) || 0,
+      }))
     },
 
-    // Fetch pedidos adeudados con detalle completo para reporte de cliente
+    // Pedidos adeudados (saldo > 0) con detalle completo para el reporte PDF del cliente
     async fetchPedidosAdeudadosDetallados(clienteId: string) {
-      const { data: pedidos, error } = await supabase
-        .from('pedidos')
-        .select(`
-          *,
-          cliente:profiles!pedidos_cliente_id_fkey(id, nombre, apellido),
-          color_oro:colores_oro(id, nombre)
-        `)
-        .eq('estado', 'entregado')
-        .eq('cliente_id', clienteId)
-        .order('fecha_entregado', { ascending: false })
+      const saldos = await this.fetchPedidosByCliente(clienteId, {})
+      const adeudados = saldos.filter(p => p.saldo_pendiente > 0)
+      if (adeudados.length === 0)
+        return []
 
-      if (error) throw error
-      if (!pedidos || pedidos.length === 0) return []
+      const ids = adeudados.map(p => p.id)
 
-      const pedidoIds = pedidos.map(p => p.id)
-      const { data: abonos } = await supabase
-        .from('abonos')
-        .select('*')
-        .in('pedido_id', pedidoIds)
-        .order('fecha', { ascending: true })
+      const [pedidosRes, abonosRes] = await Promise.all([
+        supabase
+          .from('pedidos')
+          .select(`
+            *,
+            cliente:profiles!pedidos_cliente_id_fkey(id, nombre, apellido),
+            color_oro:colores_oro(id, nombre)
+          `)
+          .in('id', ids)
+          .order('fecha_entregado', { ascending: false }),
+        supabase
+          .from('abonos')
+          .select('*')
+          .in('pedido_id', ids)
+          .order('fecha', { ascending: true }),
+      ])
 
-      const result = pedidos.map((p: any) => {
-        const abonosPedido = abonos?.filter(a => a.pedido_id === p.id) || []
-        const totalAbonado = abonosPedido.reduce((s, a) => s + (a.valor || 0), 0)
-        const saldoPendiente = (p.total_pedido || 0) - totalAbonado
-        return {
-          ...p,
-          abonos: abonosPedido,
-          total_abonado: totalAbonado,
-          saldo_pendiente: saldoPendiente,
-        }
-      })
+      if (pedidosRes.error)
+        throw pedidosRes.error
 
-      // Retornar ÚNICAMENTE pedidos con saldo adeudado (> 0)
-      return result.filter(p => p.saldo_pendiente > 0)
-    },
+      const saldoPorId = new Map(adeudados.map(p => [p.id, p]))
 
-    // Fetch clientes para filtro
-    async fetchClientes() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nombre, apellido')
-        .eq('rol_id', 3)
-        .order('nombre', { ascending: true })
+      const abonosPorPedido = new Map<string, any[]>()
+      for (const a of abonosRes.data || []) {
+        const lista = abonosPorPedido.get(a.pedido_id) || []
 
-      if (error) throw error
-      return data || []
+        lista.push(a)
+        abonosPorPedido.set(a.pedido_id, lista)
+      }
+
+      return (pedidosRes.data || []).map((p: any) => ({
+        ...p,
+        abonos: abonosPorPedido.get(p.id) || [],
+        total_abonado: saldoPorId.get(p.id)?.total_abonado || 0,
+        saldo_pendiente: saldoPorId.get(p.id)?.saldo_pendiente || 0,
+      }))
     },
   },
 })

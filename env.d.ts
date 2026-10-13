@@ -8,5 +8,6 @@ declare module 'vue-router' {
     layout?: 'blank' | 'default'
     unauthenticatedOnly?: boolean
     public?: boolean
+    requiereAdmin?: boolean
   }
 }

@@ -166,19 +166,7 @@ const resetForm = () => {
   formError.value = ''
 }
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-const formatDate = (dateString: string) => {
-  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
-  return new Date(`${dateString}T12:00:00`).toLocaleDateString('es-ES', options)
-}
+const { formatCurrency, formatShortDate: formatDate } = useFormato()
 
 // Saldo info
 const saldoInfo = computed(() => {

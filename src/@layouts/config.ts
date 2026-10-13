@@ -3,7 +3,8 @@ import { AppContentLayoutNav, ContentWidth, FooterType, HorizontalNavType, Navba
 import type { LayoutConfig } from '@layouts/types'
 
 export const layoutConfig: LayoutConfig = {
-  app: {
+  // shallowReactive: el título del menú se actualiza en ejecución con el nombre del negocio
+  app: shallowReactive({
     title: 'my-layout',
     logo: h('img', { src: '/src/assets/logo.svg' }),
     contentWidth: ContentWidth.Boxed,
@@ -15,7 +16,7 @@ export const layoutConfig: LayoutConfig = {
       enable: true,
     },
     iconRenderer: h('div'),
-  },
+  }),
   navbar: {
     type: NavbarType.Sticky,
     navbarBlur: true,

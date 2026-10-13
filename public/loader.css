@@ -32,7 +32,7 @@ html {
 }
 
 .loading-logo svg {
-  filter: drop-shadow(0 0 12px rgba(201, 168, 76, 0.5));
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--initial-loader-color, #C9A84C) 50%, transparent));
   animation: pulseGold 2.5s ease-in-out infinite;
 }
 
@@ -45,16 +45,16 @@ html {
   line-height: 1;
   background: linear-gradient(
     135deg,
-    #E2C06A 0%,
-    #C9A84C 30%,
-    #F0D080 55%,
-    #C9A84C 70%,
-    #A07A2B 100%
+    color-mix(in srgb, var(--initial-loader-color, #C9A84C), white 20%) 0%,
+    var(--initial-loader-color, #C9A84C) 30%,
+    color-mix(in srgb, var(--initial-loader-color, #C9A84C), white 35%) 55%,
+    var(--initial-loader-color, #C9A84C) 70%,
+    color-mix(in srgb, var(--initial-loader-color, #C9A84C), black 25%) 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 2px 8px rgba(201, 168, 76, 0.4));
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--initial-loader-color, #C9A84C) 40%, transparent));
 }
 
 .loading-brand-tagline {
@@ -128,9 +128,9 @@ html {
 
 @keyframes pulseGold {
   0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(201, 168, 76, 0.4));
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--initial-loader-color, #C9A84C) 40%, transparent));
   }
   50% {
-    filter: drop-shadow(0 0 20px rgba(201, 168, 76, 0.75));
+    filter: drop-shadow(0 0 20px color-mix(in srgb, var(--initial-loader-color, #C9A84C) 75%, transparent));
   }
 }

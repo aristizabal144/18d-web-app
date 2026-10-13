@@ -65,22 +65,9 @@ const headers = [
 ]
 
 // ── Utilidades de Formato ─────────────────────────────
-const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(val || 0)
-}
+const { formatCurrency, formatDateWith } = useFormato()
 
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('es-CO', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
+const formatDate = (dateStr?: string) => formatDateWith(dateStr, { year: 'numeric', month: 'short', day: 'numeric' })
 
 const getEstadoColor = (estado: string) => {
   if (estado === 'cancelado') return 'success'

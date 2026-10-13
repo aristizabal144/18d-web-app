@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { themeConfig } from '@themeConfig'
+import { useTheme } from 'vuetify'
 import { supabase } from '@/utils/supabase'
-
-import logoDorado from '@images/logos/logo-dorado.png'
-import { useConfigStore } from '@/@core/stores/config'
+import { useNegocioStore } from '@/views/apps/configuracion/useNegocioStore'
 
 definePage({
   meta: {
@@ -22,12 +20,12 @@ const form = ref({
 const isPasswordVisible = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
-const configStore = useConfigStore()
 const router = useRouter()
+const negocio = useNegocioStore()
+const vuetifyTheme = useTheme()
 
-const currentLogo = computed(() => {
-  return logoDorado
-})
+// En móvil el logo va sobre la superficie del tema; el panel lateral siempre es oscuro
+const currentLogo = computed(() => vuetifyTheme.current.value.dark ? negocio.logoClaro : negocio.logo)
 
 const handleLogin = async () => {
   isLoading.value = true
@@ -67,7 +65,7 @@ const handleLogin = async () => {
 <template>
   <div class="auth-wrapper d-flex align-center justify-center pa-4">
     <VCard
-      class="auth-card-18d pa-0 mx-auto"
+      class="auth-card-negocio pa-0 mx-auto"
       max-width="1200"
       elevation="24"
     >
@@ -80,10 +78,10 @@ const handleLogin = async () => {
           <div class="brand-overlay" />
           <div class="brand-content text-center z-index-1">
             <img
-              :src="logoDorado"
+              :src="negocio.logoClaro"
               style="width: 100%; max-width: 600px;"
               class="mx-auto brand-logo-glow"
-              alt="18D Joyeros Logo"
+              :alt="`Logo ${negocio.nombreComercial}`"
             >
           </div>
         </VCol>
@@ -111,7 +109,7 @@ const handleLogin = async () => {
                 class="text-h4 mb-2 font-weight-bold"
                 style="color: rgb(var(--v-theme-on-surface));"
               >
-                Bienvenido a <span class="text-primary">18D</span>
+                Bienvenido a <span class="text-primary">{{ negocio.nombreComercial }}</span>
               </h4>
               <p
                 class="text-body-1 mb-0"
@@ -130,7 +128,7 @@ const handleLogin = async () => {
                     autofocus
                     label="Correo electrónico o Usuario"
                     type="email"
-                    placeholder="usuario@18djoyeros.com"
+                    placeholder="usuario@correo.com"
                   />
                 </VCol>
 
@@ -197,7 +195,7 @@ const handleLogin = async () => {
                     radial-gradient(circle at bottom left, rgba(var(--v-theme-primary), 0.05), transparent 40%);
 }
 
-.auth-card-18d {
+.auth-card-negocio {
   overflow: hidden;
   border-radius: 16px !important;
   background-color: rgb(var(--v-theme-surface));
@@ -224,22 +222,22 @@ const handleLogin = async () => {
 .brand-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(201, 168, 76, 0.05) 0%, transparent 50%, rgba(201, 168, 76, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.05) 0%, transparent 50%, rgba(var(--v-theme-primary), 0.05) 100%);
   pointer-events: none;
 }
 
 .brand-logo-glow {
-  filter: drop-shadow(0 0 25px rgba(201, 168, 76, 0.25));
+  filter: drop-shadow(0 0 25px rgba(var(--v-theme-primary), 0.25));
   transition: filter 0.5s ease;
 
   &:hover {
-    filter: drop-shadow(0 0 35px rgba(201, 168, 76, 0.4));
+    filter: drop-shadow(0 0 35px rgba(var(--v-theme-primary), 0.4));
   }
 }
 
 .login-btn {
   background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-primary-darken-1)) 100%) !important;
-  color: #141414 !important; // Texto oscuro sobre botón dorado
+  color: rgb(var(--v-theme-on-primary)) !important;
   font-weight: 600 !important;
   letter-spacing: 0.5px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;

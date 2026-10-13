@@ -61,20 +61,7 @@ const kpiFacturas = computed(() => dailyData.value.reduce((s, d) => s + d.cantid
 const kpiPendiente = computed(() => facturasPendientes.value.reduce((s, f) => s + Number(f.total || 0), 0))
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '-'
-  const [year, month, day] = dateStr.substring(0, 10).split('-')
-  return `${day}/${month}/${year}`
-}
+const { formatCurrency, formatDateNumeric: formatDate } = useFormato()
 
 // ─── Fetch Reporte ────────────────────────────────────────────────────────────
 const fetchReporte = async () => {

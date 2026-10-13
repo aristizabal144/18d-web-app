@@ -5,8 +5,8 @@
   <link rel="icon" href="/favicon.ico" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>18D JOYEROS – Diseño 3D</title>
-  <meta name="description" content="18D Joyeros – Plataforma de gestión para joyería y diseño 3D profesional." />
+  <title>Sistema de Gestión – Joyería y Diseño 3D</title>
+  <meta name="description" content="Plataforma de gestión para joyería y diseño 3D profesional." />
   <link rel="stylesheet" type="text/css" href="/loader.css" />
 </head>
 
@@ -14,44 +14,14 @@
   <div id="app">
     <div id="loading-bg">
       <div class="loading-logo">
-        <!-- 18D JOYEROS Logo – Símbolo hexagonal dorado -->
-        <svg width="72" height="72" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Hexágono exterior -->
-          <polygon
-            points="50,4 92,27 92,73 50,96 8,73 8,27"
-            stroke="var(--initial-loader-color)"
-            stroke-width="3.5"
-            fill="none"
-          />
-          <!-- Hexágono interior -->
-          <polygon
-            points="50,20 78,36 78,64 50,80 22,64 22,36"
-            stroke="var(--initial-loader-color)"
-            stroke-width="2.5"
-            fill="none"
-          />
-          <!-- Círculo central -->
-          <circle
-            cx="50" cy="50" r="14"
-            stroke="var(--initial-loader-color)"
-            stroke-width="2.5"
-            fill="none"
-          />
-          <!-- Líneas de conexión diagonal superior-izq -->
-          <line x1="28" y1="37" x2="38" y2="43" stroke="var(--initial-loader-color)" stroke-width="2"/>
-          <!-- Líneas de conexión diagonal superior-der -->
-          <line x1="72" y1="37" x2="62" y2="43" stroke="var(--initial-loader-color)" stroke-width="2"/>
-          <!-- Líneas de conexión inferior-izq -->
-          <line x1="28" y1="63" x2="38" y2="57" stroke="var(--initial-loader-color)" stroke-width="2"/>
-          <!-- Líneas de conexión inferior-der -->
-          <line x1="72" y1="63" x2="62" y2="57" stroke="var(--initial-loader-color)" stroke-width="2"/>
-          <!-- Línea superior -->
-          <line x1="44" y1="36" x2="56" y2="36" stroke="var(--initial-loader-color)" stroke-width="2"/>
-          <!-- Línea inferior -->
-          <line x1="44" y1="64" x2="56" y2="64" stroke="var(--initial-loader-color)" stroke-width="2"/>
+        <!-- Anillo solitario (mismo diseño que src/assets/images/logo.svg) -->
+        <svg width="80" height="80" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: var(--initial-loader-color)">
+          <circle cx="16" cy="21" r="8.5" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M12 2.5H20L23.5 6.5L16 11.5L8.5 6.5L12 2.5Z" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M8.5 6.5H23.5M12 2.5L14 6.5L16 11.5L18 6.5L20 2.5" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
         </svg>
-        <div class="loading-brand-name">18D</div>
-        <div class="loading-brand-tagline">JOYEROS</div>
+        <div id="loading-brand-name" class="loading-brand-name"></div>
+        <div id="loading-brand-tagline" class="loading-brand-tagline"></div>
       </div>
       <div class="loading">
         <div class="effect-1 effects"></div>
@@ -62,20 +32,38 @@
   </div>
   <script type="module" src="/src/main.ts"></script>
   <script>
-    // 18D Joyeros – Brand colors: dark background, gold primary
+    // Colores del loader: fondo oscuro y primario del negocio
     const storedBg = localStorage.getItem('18d-joyeros-initial-loader-bg')
     const storedColor = localStorage.getItem('18d-joyeros-initial-loader-color')
 
+    // Caché de la configuración del negocio (lo escribe useNegocioStore con el prefijo storageNamespace de themeConfig.ts)
+    let negocio = {}
+    try {
+      negocio = JSON.parse(localStorage.getItem('18D JOYEROS-negocio') || '{}') || {}
+    }
+    catch (e) {}
+
+    const isHex = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
+    const brandColor = isHex(negocio.color_primario) ? negocio.color_primario : null
+
     // Default to dark brand colors if no stored preference
     const loaderBg = storedBg || '#141414'
-    const loaderColor = storedColor || '#C9A84C'
+    const loaderColor = brandColor || storedColor || '#C9A84C'
 
     document.documentElement.style.setProperty('--initial-loader-bg', loaderBg)
     document.documentElement.style.setProperty('--initial-loader-color', loaderColor)
 
     // Set text color based on background
     const isDark = loaderBg === '#141414' || loaderBg.startsWith('#1') || loaderBg.startsWith('#0')
-    document.documentElement.style.setProperty('--initial-loader-text', isDark ? '#C9A84C' : '#1E1B16')
+    document.documentElement.style.setProperty('--initial-loader-text', isDark ? loaderColor : '#1E1B16')
+
+    // Nombre del negocio: primera palabra como marca, el resto como subtítulo
+    if (typeof negocio.nombre_comercial === 'string' && negocio.nombre_comercial.trim()) {
+      const [marca, ...resto] = negocio.nombre_comercial.trim().toUpperCase().split(/\s+/)
+      document.getElementById('loading-brand-name').textContent = marca
+      document.getElementById('loading-brand-tagline').textContent = resto.join(' ')
+      document.title = negocio.nombre_comercial.toUpperCase() + ' – Diseño 3D'
+    }
   </script>
 </body>
 </html>

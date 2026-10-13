@@ -174,7 +174,7 @@ const membersList: Member[] = [
               class="me-2"
               size="20"
             />
-            <div>Public to 18D JOYEROS</div>
+            <div>Public to everyone</div>
           </h6>
 
           <VBtn

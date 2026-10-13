@@ -31,13 +31,7 @@ watch(() => props.isDialogVisible, (newVal) => {
   }
 })
 
-const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(val || 0)
-}
+const { formatCurrency } = useFormato()
 
 const onRegistrarAbono = () => {
   if (!props.vale || !valorAbono.value || valorAbono.value <= 0) return

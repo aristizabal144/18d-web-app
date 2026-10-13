@@ -5,6 +5,7 @@ import type { RouteRecordRaw } from 'vue-router/auto'
 
 import { createRouter, createWebHistory } from 'vue-router/auto'
 import { supabase } from '@/utils/supabase'
+import { verificarAdmin } from '@/composables/usePermisos'
 
 function recursiveLayouts(route: RouteRecordRaw): RouteRecordRaw {
   if (route.children) {
@@ -44,6 +45,10 @@ router.beforeEach(async (to, from, next) => {
     // Usuario logueado intenta acceder al login -> redirigir al inicio
     return next({ path: '/' })
   }
+
+  // Rutas exclusivas del rol admin (meta.requiereAdmin en definePage)
+  if (to.meta.requiereAdmin && !(await verificarAdmin()))
+    return next({ path: '/' })
 
   next()
 })

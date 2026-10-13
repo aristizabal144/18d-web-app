@@ -1,116 +1,231 @@
 <script setup lang="ts">
-import type { ArregloStats } from './useArreglosStore'
+import type { ArregloResumen } from './useArreglosStore'
+import { DIAS_VENCIMIENTO_ARREGLO } from './useArreglosStore'
 
-defineProps<{
-  stats: ArregloStats
+const props = defineProps<{
+  resumen: ArregloResumen
   loading?: boolean
 }>()
 
-const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(val || 0)
-}
+const emit = defineEmits<{
+  (e: 'verPendientes'): void
+  (e: 'verVencidos'): void
+}>()
+
+const { formatCurrency } = useFormato()
+
+const variacion = computed(() => {
+  const { total_mes: actual, total_mes_anterior: anterior } = props.resumen
+  if (!anterior)
+    return actual > 0 ? 100 : 0
+
+  return Math.round(((actual - anterior) / anterior) * 100)
+})
+
+const promedioMes = computed(() =>
+  props.resumen.cantidad_mes ? Math.round(props.resumen.total_mes / props.resumen.cantidad_mes) : 0,
+)
+
+const porcentajeEfectivo = computed(() =>
+  props.resumen.cobrado_mes ? (props.resumen.cobrado_mes_efectivo / props.resumen.cobrado_mes) * 100 : 0,
+)
 </script>
 
 <template>
   <VRow>
-    <!-- 1. Total Arreglos del Mes -->
-    <VCol cols="12" sm="6" md="3">
-      <VCard elevation="2" class="stats-card">
-        <VCardText class="d-flex align-center justify-space-between pa-4">
-          <div>
+    <!-- 1. Por cobrar -->
+    <VCol
+      cols="12"
+      sm="6"
+      lg="3"
+    >
+      <VCard
+        elevation="2"
+        class="stats-card stats-card--clicable stats-card--deuda"
+        @click="emit('verPendientes')"
+      >
+        <VCardText class="pa-4">
+          <div class="d-flex align-center justify-space-between mb-2">
+            <span class="text-caption text-uppercase font-weight-bold text-disabled">Por Cobrar</span>
+            <VAvatar
+              color="error"
+              variant="tonal"
+              size="38"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-receipt-2"
+                size="20"
+              />
+            </VAvatar>
+          </div>
+          <VSkeletonLoader
+            v-if="loading"
+            type="heading"
+            class="stats-skeleton"
+          />
+          <template v-else>
+            <h4 class="text-h4 font-weight-bold text-error">
+              {{ formatCurrency(resumen.total_pendiente) }}
+            </h4>
+            <div class="text-xs text-disabled mt-1">
+              {{ resumen.cantidad_pendientes }} arreglo(s) · {{ resumen.clientes_con_deuda }} cliente(s)
+            </div>
+          </template>
+        </VCardText>
+      </VCard>
+    </VCol>
+
+    <!-- 2. Cobrado este mes -->
+    <VCol
+      cols="12"
+      sm="6"
+      lg="3"
+    >
+      <VCard
+        elevation="2"
+        class="stats-card"
+      >
+        <VCardText class="pa-4">
+          <div class="d-flex align-center justify-space-between mb-2">
+            <span class="text-caption text-uppercase font-weight-bold text-disabled">Cobrado este Mes</span>
+            <VAvatar
+              color="success"
+              variant="tonal"
+              size="38"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-cash-banknote"
+                size="20"
+              />
+            </VAvatar>
+          </div>
+          <VSkeletonLoader
+            v-if="loading"
+            type="heading"
+            class="stats-skeleton"
+          />
+          <template v-else>
+            <h4 class="text-h4 font-weight-bold text-success">
+              {{ formatCurrency(resumen.cobrado_mes) }}
+            </h4>
+            <div
+              v-if="resumen.cobrado_mes"
+              class="split-bar mt-2"
+            >
+              <div
+                class="split-bar__efectivo"
+                :style="{ inlineSize: `${porcentajeEfectivo}%` }"
+              />
+            </div>
+            <div class="text-xs text-disabled mt-1">
+              Ef. {{ formatCurrency(resumen.cobrado_mes_efectivo) }} · Tr. {{ formatCurrency(resumen.cobrado_mes_transferencia) }}
+            </div>
+          </template>
+        </VCardText>
+      </VCard>
+    </VCol>
+
+    <!-- 3. Arreglos del mes -->
+    <VCol
+      cols="12"
+      sm="6"
+      lg="3"
+    >
+      <VCard
+        elevation="2"
+        class="stats-card"
+      >
+        <VCardText class="pa-4">
+          <div class="d-flex align-center justify-space-between mb-2">
             <span class="text-caption text-uppercase font-weight-bold text-disabled">Arreglos del Mes</span>
-            <h5 class="text-h5 font-weight-bold text-primary mt-1 mb-0">
-              <VProgressCircular v-if="loading" indeterminate size="20" width="2" color="primary" />
-              <span v-else>{{ formatCurrency(stats.totalMesActual) }}</span>
-            </h5>
-            <div class="d-flex align-center gap-1 mt-1">
+            <VAvatar
+              color="primary"
+              variant="tonal"
+              size="38"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-tools"
+                size="20"
+              />
+            </VAvatar>
+          </div>
+          <VSkeletonLoader
+            v-if="loading"
+            type="heading"
+            class="stats-skeleton"
+          />
+          <template v-else>
+            <div class="d-flex align-center gap-2 flex-wrap">
+              <h4 class="text-h4 font-weight-bold text-primary">
+                {{ formatCurrency(resumen.total_mes) }}
+              </h4>
               <VChip
-                v-if="!loading"
                 size="x-small"
-                :color="stats.variacionPorcentaje >= 0 ? 'success' : 'error'"
+                :color="variacion >= 0 ? 'success' : 'error'"
                 variant="tonal"
                 class="font-weight-bold"
               >
                 <VIcon
-                  :icon="stats.variacionPorcentaje >= 0 ? 'tabler-trending-up' : 'tabler-trending-down'"
+                  :icon="variacion >= 0 ? 'tabler-trending-up' : 'tabler-trending-down'"
                   size="12"
                   class="me-1"
                 />
-                {{ stats.variacionPorcentaje >= 0 ? `+${stats.variacionPorcentaje}%` : `${stats.variacionPorcentaje}%` }}
+                {{ variacion >= 0 ? `+${variacion}` : variacion }}%
               </VChip>
-              <span class="text-xs text-disabled">vs mes anterior</span>
             </div>
-          </div>
-          <VAvatar color="primary" variant="tonal" size="48" rounded="lg">
-            <VIcon icon="tabler-tools" size="26" />
-          </VAvatar>
+            <div class="text-xs text-disabled mt-1">
+              {{ resumen.cantidad_mes }} arreglo(s) · {{ resumen.piezas_mes }} pza(s) · Prom. {{ formatCurrency(promedioMes) }}
+            </div>
+            <div class="text-xs text-disabled">
+              Histórico: {{ formatCurrency(resumen.total_historico) }}
+            </div>
+          </template>
         </VCardText>
       </VCard>
     </VCol>
 
-    <!-- 2. Cantidad de Arreglos -->
-    <VCol cols="12" sm="6" md="3">
-      <VCard elevation="2" class="stats-card">
-        <VCardText class="d-flex align-center justify-space-between pa-4">
-          <div>
-            <span class="text-caption text-uppercase font-weight-bold text-disabled">Trabajos del Mes</span>
-            <h5 class="text-h5 font-weight-bold text-info mt-1 mb-0">
-              <VProgressCircular v-if="loading" indeterminate size="20" width="2" color="info" />
-              <span v-else>{{ stats.cantidadArreglosMes }} arreglos</span>
-            </h5>
-            <span class="text-xs text-disabled mt-1 d-block">
-              {{ stats.cantidadPiezasMes }} piezas intervenidas
-            </span>
+    <!-- 4. Vencidos -->
+    <VCol
+      cols="12"
+      sm="6"
+      lg="3"
+    >
+      <VCard
+        elevation="2"
+        class="stats-card stats-card--clicable"
+        @click="emit('verVencidos')"
+      >
+        <VCardText class="pa-4">
+          <div class="d-flex align-center justify-space-between mb-2">
+            <span class="text-caption text-uppercase font-weight-bold text-disabled">Vencidos +{{ DIAS_VENCIMIENTO_ARREGLO }} días</span>
+            <VAvatar
+              color="warning"
+              variant="tonal"
+              size="38"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-clock-exclamation"
+                size="20"
+              />
+            </VAvatar>
           </div>
-          <VAvatar color="info" variant="tonal" size="48" rounded="lg">
-            <VIcon icon="tabler-list-check" size="26" />
-          </VAvatar>
-        </VCardText>
-      </VCard>
-    </VCol>
-
-    <!-- 3. Valor Promedio por Servicio -->
-    <VCol cols="12" sm="6" md="3">
-      <VCard elevation="2" class="stats-card">
-        <VCardText class="d-flex align-center justify-space-between pa-4">
-          <div>
-            <span class="text-caption text-uppercase font-weight-bold text-disabled">Promedio por Servicio</span>
-            <h5 class="text-h5 font-weight-bold text-warning mt-1 mb-0">
-              <VProgressCircular v-if="loading" indeterminate size="20" width="2" color="warning" />
-              <span v-else>{{ formatCurrency(stats.valorPromedioMes) }}</span>
-            </h5>
-            <span class="text-xs text-disabled mt-1 d-block">
-              Valor medio por arreglo
-            </span>
-          </div>
-          <VAvatar color="warning" variant="tonal" size="48" rounded="lg">
-            <VIcon icon="tabler-calculator" size="26" />
-          </VAvatar>
-        </VCardText>
-      </VCard>
-    </VCol>
-
-    <!-- 4. Total Histórico Acumulado -->
-    <VCol cols="12" sm="6" md="3">
-      <VCard elevation="2" class="stats-card">
-        <VCardText class="d-flex align-center justify-space-between pa-4">
-          <div>
-            <span class="text-caption text-uppercase font-weight-bold text-disabled">Total Histórico</span>
-            <h5 class="text-h5 font-weight-bold text-success mt-1 mb-0">
-              <VProgressCircular v-if="loading" indeterminate size="20" width="2" color="success" />
-              <span v-else>{{ formatCurrency(stats.totalHistorico) }}</span>
-            </h5>
-            <span class="text-xs text-disabled mt-1 d-block">
-              Suma acumulada de arreglos
-            </span>
-          </div>
-          <VAvatar color="success" variant="tonal" size="48" rounded="lg">
-            <VIcon icon="tabler-cash-banknote" size="26" />
-          </VAvatar>
+          <VSkeletonLoader
+            v-if="loading"
+            type="heading"
+            class="stats-skeleton"
+          />
+          <template v-else>
+            <h4 class="text-h4 font-weight-bold text-warning">
+              {{ formatCurrency(resumen.total_vencido) }}
+            </h4>
+            <div class="text-xs text-disabled mt-1">
+              {{ resumen.cantidad_vencidos ? `${resumen.cantidad_vencidos} arreglo(s) sin pagar hace más de ${DIAS_VENCIMIENTO_ARREGLO} días` : 'Sin cobros atrasados' }}
+            </div>
+          </template>
         </VCardText>
       </VCard>
     </VCol>
@@ -119,9 +234,38 @@ const formatCurrency = (val: number) => {
 
 <style scoped>
 .stats-card {
+  block-size: 100%;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.stats-card:hover {
+
+.stats-card--clicable {
+  cursor: pointer;
+}
+
+.stats-card--clicable:hover {
   transform: translateY(-2px);
+}
+
+.stats-card--deuda {
+  border-inline-start: 4px solid rgb(var(--v-theme-error)) !important;
+}
+
+.stats-skeleton {
+  background: transparent;
+  max-inline-size: 180px;
+}
+
+.split-bar {
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgb(var(--v-theme-info));
+  block-size: 6px;
+}
+
+.split-bar__efectivo {
+  background: rgb(var(--v-theme-success));
+  block-size: 100%;
+  transition: inline-size 0.3s ease;
 }
 </style>

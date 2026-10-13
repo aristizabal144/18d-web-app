@@ -1,41 +1,35 @@
+<script setup lang="ts">
+import { useNegocioStore } from '@/views/apps/configuracion/useNegocioStore'
+
+const negocio = useNegocioStore()
+
+const sitioWeb = computed(() => {
+  const url = negocio.config.sitio_web?.trim()
+  if (!url)
+    return null
+
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
+})
+</script>
+
 <template>
   <div class="h-100 d-flex align-center justify-md-space-between justify-center">
     <!-- 👉 Footer: left content -->
     <span class="d-flex align-center text-medium-emphasis">
       &copy;
       {{ new Date().getFullYear() }}
-      Made With
-      <VIcon
-        icon="tabler-heart-filled"
-        color="error"
-        size="1.25rem"
-        class="mx-1"
-      />
-      By <a
-        href="https://pixinvent.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="text-primary ms-1"
-      >Pixinvent</a>
+      <span class="ms-1">{{ negocio.razonSocial }}</span>
     </span>
     <!-- 👉 Footer: right content -->
-    <span class="d-md-flex gap-x-4 text-primary d-none">
+    <span
+      v-if="sitioWeb"
+      class="d-md-flex gap-x-4 text-primary d-none"
+    >
       <a
-        href="https://themeforest.net/licenses/standard"
-        target="noopener noreferrer"
-      >License</a>
-      <a
-        href="https://1.envato.market/pixinvent_portfolio"
-        target="noopener noreferrer"
-      >More Themes</a>
-      <a
-        href="https://github.com/aristizabal144/18d-web-app"
-        target="noopener noreferrer"
-      >Documentation</a>
-      <a
-        href="https://pixinvent.ticksy.com/"
-        target="noopener noreferrer"
-      >Support</a>
+        :href="sitioWeb"
+        target="_blank"
+        rel="noopener noreferrer"
+      >{{ negocio.config.sitio_web }}</a>
     </span>
   </div>
 </template>

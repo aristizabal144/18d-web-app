@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useGastosStore } from '@/views/apps/gastos/useGastosStore'
 import type { Gasto, GastoStats } from '@/views/apps/gastos/useGastosStore'
+import { useNegocioStore } from '@/views/apps/configuracion/useNegocioStore'
 
 // 👉 Store & Router
 const gastosStore = useGastosStore()
@@ -64,20 +65,9 @@ const headers = [
 ]
 
 // 👉 Helpers de Formato
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '-'
-  const [year, month, day] = dateStr.split('-')
-  return `${day}/${month}/${year}`
-}
+const negocio = useNegocioStore()
+const { formatCurrency, formatDateNumeric: formatDate, formatNowDateTime, moneda } = useFormato()
+const { estilosVariables } = usePrintDocument()
 
 const requiredValidator = (v: any) => !!v || 'Campo requerido'
 const positiveNumberValidator = (v: any) => (v && Number(v) > 0) || 'El valor debe ser mayor a 0'
@@ -252,12 +242,13 @@ const printReport = () => {
     <html lang="es">
     <head>
       <meta charset="UTF-8">
-      <title>Reporte de Gastos - 18D Joyeros</title>
+      <title>Reporte de Gastos - ${negocio.nombreComercial}</title>
       <style>
+        ${estilosVariables()}
         @page { size: A4; margin: 15mm; }
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111; margin: 0; padding: 20px; font-size: 13px; line-height: 1.4; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #8b6b15; padding-bottom: 15px; margin-bottom: 20px; }
-        .logo-title { font-size: 22px; font-weight: bold; color: #8b6b15; letter-spacing: 1px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--doc-primario-oscuro); padding-bottom: 15px; margin-bottom: 20px; }
+        .logo-title { font-size: 22px; font-weight: bold; color: var(--doc-primario-oscuro); letter-spacing: 1px; }
         .subtitle { font-size: 13px; color: #666; margin-top: 4px; }
         .report-info { text-align: right; font-size: 12px; color: #444; }
         
@@ -265,10 +256,10 @@ const printReport = () => {
         .summary-box { flex: 1; border: 1px solid #e0e0e0; background: #fafafa; border-radius: 6px; padding: 10px 14px; text-align: center; }
         .summary-box .label { font-size: 11px; text-transform: uppercase; color: #666; font-weight: 600; }
         .summary-box .val { font-size: 16px; font-weight: bold; color: #111; margin-top: 4px; }
-        .summary-box.total .val { color: #8b6b15; font-size: 18px; }
+        .summary-box.total .val { color: var(--doc-primario-oscuro); font-size: 18px; }
 
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { background: #1e1b16; color: #f5d77f; padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #8b6b15; }
+        th { background: #1e1b16; color: var(--doc-primario-claro); padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--doc-primario-oscuro); }
         td { padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 12px; }
         tr:nth-child(even) { background-color: #fcfcfc; }
 
@@ -282,12 +273,12 @@ const printReport = () => {
     <body>
       <div class="header">
         <div>
-          <div class="logo-title">18D JOYEROS</div>
+          <div class="logo-title">${negocio.nombreMayusculas}</div>
           <div class="subtitle">Reporte Detallado de Gastos y Egresos</div>
         </div>
         <div class="report-info">
           <div><strong>Rango:</strong> ${formatDate(reportFechaInicio.value)} al ${formatDate(reportFechaFin.value)}</div>
-          <div><strong>Fecha Impr.:</strong> ${new Date().toLocaleDateString('es-CO')} ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div><strong>Fecha Impr.:</strong> ${formatNowDateTime()}</div>
           <div><strong>Total Regs:</strong> ${reportGastos.value.length}</div>
         </div>
       </div>
@@ -323,7 +314,7 @@ const printReport = () => {
       </table>
 
       <div class="footer">
-        <div>18D Joyeros — Sistema de Control Financiero</div>
+        <div>${negocio.nombreComercial} — Sistema de Control Financiero</div>
         <div>Página 1 de 1</div>
       </div>
 
@@ -703,12 +694,12 @@ const printReport = () => {
                 />
               </VCol>
 
-              <!-- Valor (COP) -->
+              <!-- Valor (moneda configurada) -->
               <VCol cols="12" sm="6">
                 <AppTextField
                   v-model.number="formValor"
                   :rules="[requiredValidator, positiveNumberValidator]"
-                  label="Valor (COP) *"
+                  :label="`Valor (${moneda}) *`"
                   placeholder="0"
                   type="number"
                   prefix="$"

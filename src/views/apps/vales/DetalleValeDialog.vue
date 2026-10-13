@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Vale } from './useValesStore'
+import { useNegocioStore } from '@/views/apps/configuracion/useNegocioStore'
 
 const props = defineProps<{
   isDialogVisible: boolean
@@ -10,28 +11,15 @@ const emit = defineEmits<{
   (e: 'update:isDialogVisible', val: boolean): void
 }>()
 
-const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(val || 0)
-}
+const negocio = useNegocioStore()
+const { formatCurrency, formatDateWith } = useFormato()
+const { imprimirHtml } = usePrintDocument()
 
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('es-CO', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
+const formatDate = (dateStr?: string) => formatDateWith(dateStr, { year: 'numeric', month: 'short', day: 'numeric' })
 
 // Imprimir recibo de vale
 const printValeRecibo = () => {
   if (!props.vale) return
-  const w = window.open('', '_blank', 'width=800,height=800')
-  if (!w) return
 
   const saldo = Number(props.vale.saldo_pendiente ?? (props.vale.monto_total - props.vale.monto_abonado))
   const abonosList = props.vale.abonos || []
@@ -48,31 +36,29 @@ const printValeRecibo = () => {
       `).join('')
     : '<tr><td colspan="5" style="text-align: center; color: #888; padding: 12px;">Sin abonos registrados</td></tr>'
 
-  w.document.write(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <title>Comprobante de Vale - ${props.vale.beneficiario}</title>
-      <style>
+  imprimirHtml({
+    titulo: `Comprobante de Vale - ${props.vale.beneficiario}`,
+    ancho: 800,
+    alto: 800,
+    estilos: `
         body { font-family: system-ui, sans-serif; padding: 24px; color: #111; }
-        .header { text-align: center; border-bottom: 2px solid #8b6b15; padding-bottom: 12px; margin-bottom: 20px; }
-        .brand { font-size: 24px; font-weight: 900; color: #8b6b15; letter-spacing: 1px; }
+        .header { text-align: center; border-bottom: 2px solid var(--doc-primario-oscuro); padding-bottom: 12px; margin-bottom: 20px; }
+        .brand { font-size: 24px; font-weight: 900; color: var(--doc-primario-oscuro); letter-spacing: 1px; }
         .sub { font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; margin-top: 4px; }
         .box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 20px; background: #fffcf7; }
         .box-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
         table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th { background: #1e1b16; color: #f5d77f; padding: 8px; font-size: 11px; text-transform: uppercase; text-align: left; }
+        th { background: #1e1b16; color: var(--doc-primario-claro); padding: 8px; font-size: 11px; text-transform: uppercase; text-align: left; }
         td { padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; }
         .signatures { display: flex; justify-content: space-around; margin-top: 40px; }
         .sig-block { text-align: center; width: 200px; }
         .sig-line { border-bottom: 1px solid #111; height: 35px; }
         .sig-label { font-size: 10px; font-weight: 700; margin-top: 4px; }
-      </style>
-    </head>
-    <body>
+        .terms { margin-top: 24px; font-size: 11px; color: #444; text-align: center; line-height: 1.5; }
+    `,
+    cuerpo: `
       <div class="header">
-        <div class="brand">18D JOYEROS</div>
+        <div class="brand">${negocio.nombreMayusculas}</div>
         <div class="sub">COMPROBANTE OFICIAL DE VALE / PRÉSTAMO DE DINERO</div>
       </div>
 
@@ -88,7 +74,7 @@ const printValeRecibo = () => {
         </div>
       </div>
 
-      <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #8b6b15; margin-bottom: 4px;">
+      <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--doc-primario-oscuro); margin-bottom: 4px;">
         Historial de Abonos Recibidos
       </div>
       <table>
@@ -106,6 +92,8 @@ const printValeRecibo = () => {
         </tbody>
       </table>
 
+      ${negocio.config.terminos_vales ? `<div class="terms">${negocio.config.terminos_vales}</div>` : ''}
+
       <div class="signatures">
         <div class="sig-block">
           <div class="sig-line"></div>
@@ -114,18 +102,12 @@ const printValeRecibo = () => {
         </div>
         <div class="sig-block">
           <div class="sig-line"></div>
-          <div class="sig-label">REPRESENTANTE 18D JOYEROS</div>
+          <div class="sig-label">REPRESENTANTE ${negocio.nombreMayusculas}</div>
           <div style="font-size: 10px; color: #555;">Control de Cartera & Vales</div>
         </div>
       </div>
-
-      <script>
-        window.onload = function() { window.print(); }
-      <\/script>
-    </body>
-    </html>
-  `)
-  w.document.close()
+    `,
+  })
 }
 </script>
 

@@ -1,6 +1,7 @@
 import type { ThemeDefinition } from 'vuetify'
 
-// 🎨 18D JOYEROS – Paleta de marca extraída del logo
+// 🎨 Paleta base (dorado). El primario se reemplaza en ejecución con el
+// color_primario de la configuración del negocio (ver useMarcaNegocio).
 // Dorado principal: #C9A84C | Dorado claro: #E2C06A | Dorado oscuro: #A07A2B
 // Negro profundo: #141414 | Negro superficie: #1E1B16 | Crema: #F7F3EC
 

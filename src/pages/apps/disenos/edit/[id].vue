@@ -133,14 +133,7 @@ const removeImage = () => {
 // 👉 Computed
 const precioTotal = computed(() => (precioDiseno.value || 0) + (precioImpresion.value || 0))
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const { formatCurrency, moneda } = useFormato()
 
 // 👉 Validators
 const requiredValidator = (v: any) => !!v || 'Campo requerido'
@@ -569,7 +562,7 @@ onBeforeUnmount(() => {
                   <VCol cols="12">
                     <AppTextField
                       v-model.number="precioDiseno"
-                      label="Precio Diseño (COP)"
+                      :label="`Precio Diseño (${moneda})`"
                       placeholder="0"
                       type="number"
                       prefix="$"
@@ -579,7 +572,7 @@ onBeforeUnmount(() => {
                   <VCol cols="12">
                     <AppTextField
                       v-model.number="precioImpresion"
-                      label="Precio Impresión (COP)"
+                      :label="`Precio Impresión (${moneda})`"
                       placeholder="0"
                       type="number"
                       prefix="$"

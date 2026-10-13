@@ -231,22 +231,9 @@ watch(abonosDialogOpen, val => {
 })
 
 // 👉 Helpers
-const formatDate = (dateString: string | null | undefined) => {
-  if (!dateString) return ''
-  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
-  const dateObj = dateString.includes('T') ? new Date(dateString) : new Date(`${dateString}T12:00:00`)
+const { formatCurrency, formatShortDate } = useFormato()
 
-  return dateObj.toLocaleDateString('es-ES', options)
-}
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const formatDate = (dateString: string | null | undefined) => formatShortDate(dateString, '')
 
 const getImageUrl = (path: string | null) => {
   if (!path)

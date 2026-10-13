@@ -113,11 +113,7 @@ const deleteClient = async (id: string) => {
 }
 
 // Formateo de fecha
-const formatDate = (dateString: string) => {
-  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
-
-  return new Date(dateString).toLocaleDateString('es-ES', options)
-}
+const { formatShortDate: formatDate } = useFormato()
 </script>
 
 <template>

@@ -8,9 +8,14 @@ import logo from '@images/logo.svg?raw'
 
 import { AppContentLayoutNav, ContentWidth, FooterType, NavbarType } from '@layouts/enums'
 
+// ❗ Prefijo de cookies y localStorage. No cambiarlo: los usuarios perderían sus preferencias guardadas
+// (index.html también lo usa para leer el caché del negocio).
+export const storageNamespace = '18D JOYEROS'
+
 export const { themeConfig, layoutConfig } = defineThemeConfig({
   app: {
-    title: '18D JOYEROS',
+    // Título genérico de respaldo; en ejecución se reemplaza por el nombre comercial configurado
+    title: 'sistema de gestión',
     logo: h('div', { innerHTML: logo, style: 'line-height:0; color: rgb(var(--v-global-theme-primary))' }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,

@@ -106,14 +106,7 @@ const totalPedido = computed(() => {
   return Math.round((pf * pg) + pa)
 })
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const { formatCurrency, moneda } = useFormato()
 
 // 👉 Validators
 const requiredValidator = (v: any) => !!v || 'Campo requerido'
@@ -585,7 +578,7 @@ onBeforeUnmount(() => {
                 <VCol cols="12">
                   <AppTextField
                     v-model.number="precioGramo"
-                    label="Precio por Gramo (COP)"
+                    :label="`Precio por Gramo (${moneda})`"
                     placeholder="0"
                     type="number"
                     prefix="$"
@@ -595,7 +588,7 @@ onBeforeUnmount(() => {
                 <VCol cols="12">
                   <AppTextField
                     v-model.number="precioAdicionales"
-                    label="Precio Adicionales (COP)"
+                    :label="`Precio Adicionales (${moneda})`"
                     placeholder="0"
                     type="number"
                     prefix="$"
